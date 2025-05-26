@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+    <title>Contacts</title>
+    <meta charset="utf-8">
+    <meta name="description" content="Your description">
+    <meta name="keywords" content="Your keywords">
+    <meta name="author" content="Your name">
+    <link rel="stylesheet" href="css/style.css">
+      <link rel="icon" href="images/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="images/favicon.ico" type="image/x-icon" />
+    <script src="js/jquery.js"></script>
+    <script src="js/jquery-migrate-1.1.1.js"></script>
+    <script src="js/bgstretcher.js"></script>
+    <script src="js/forms.js"></script>
+
+    <script>
+	$(document).ready(function() {	
+      //  Initialize Backgound Stretcher
+      $('BODY').bgStretcher({
+        images: ['images/slide-1.jpg'], 
+		imageWidth: 1600, 
+		imageHeight: 964, 
+		resizeProportionally:true	
+       });	   	
+    });	
+	
+    </script>
+
+    <!--[if lt IE 8]>
+   <div style='text-align:center'><a href="http://www.microsoft.com/windows/internet-explorer/default.aspx?ocid=ie6_countdown_bannercode"><img src="http://www.theie6countdown.com/img/upgrade.jpg"border="0"alt=""/></a></div>  
+ 	<![endif]-->
+    <!--[if lt IE 9]>   
+    <link rel="stylesheet" href="css/ie.css" type="text/css" media="screen">
+   <script src="js/html5shiv.js"></script>
+    <link href='//fonts.googleapis.com/css?family=Open+Sans:400' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Open+Sans:300' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Open+Sans:600' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Open+Sans:700' rel='stylesheet' type='text/css'>  
+  <![endif]-->
+
+    </head>
+    <body>
+<div class="extra-block"> 
+      <!--==============================row-top=================================-->
+      <div class="row-top">
+    <div class="main">
+          <ul class="list-soc">
+        <li><a href="#"><img alt="" src="images/soc-icon1.png"></a></li>
+        <li><a href="#"><img alt="" src="images/soc-icon2.png"></a></li>
+      </ul>
+        </div>
+  </div>
+      
+      <!--==============================header=================================-->
+      
+   <header>
+    <div class="row-nav">
+        <div class="main">
+        <h1 class="logo"><a href="index.html"><img alt="Eni Gma" src="images/logo.png"></a></h1>
+        <nav>
+           <ul class="menu">
+            <li><a href="index.html">Inicio</a></li>
+            <li><a href="index-1.html">Nosotros</a></li>
+            <li><a href="index-2.html">Servicios</a></li>
+            <li><a href="index-3.html">Galeria</a></li>
+            <li class="current"><a href="index-4.html">Contacto</a></li>
+          </ul>
+        </nav>
+        <div class="clear"></div>
+      </div>
+      </div>
+  </header>
+  
+  <!--==============================content=================================-->
+  
+   <section id="content">  
+    <div class="main-block">
+    <div class="container_12">
+          <div class="wrapper border-vert">
+        <article class="grid_5">
+              <h3>Dirección</h3>
+              <div class="map">
+              <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3735.7028587015443!2d-100.42178472475618!3d20.559335180975204!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85d3456b6d6d7a25%3A0xf66f74e6ae36626c!2sCto.%20Jos%C3%A9%20Maria%20Hern%C3%A1ndez%2034%2C%20Cruz%20de%20Fuego%2C%2076912%20San%20Jos%C3%A9%20de%20los%20Olvera%2C%20Qro.!5e0!3m2!1ses!2smx!4v1724716881990!5m2!1ses!2smx" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+            </div>
+             
+             <dl class="address">
+                <dt>José María Hernández #34, Colonia Cruz de Fuego, Querétaro, Mexico, 76180</dt>
+                <dd> <span>Contácto:</span>442 680 1729 </dd>
+                    
+              </dl>
+        
+         </article>
+        <article class="grid_5 prefix_2">
+              <h3>Contáctanos</h3>
+             
+    <form id="contact-form">
+          <div class="success"> Contact form submitted! <strong>We will be in touch soon.</strong> </div>
+          <fieldset>
+            <div>
+              <label class="name">
+                <input type="text" value="Nombre:">
+                <br>
+                <span class="error">*No es nombre valido.</span> <span class="empty">*Debes llenar este campo.</span> </label>
+            </div>
+            <div>
+              <label class="email">
+                <input type="email" value="E-mail:">
+                <br>
+                <span class="error">*No es un correo valido.</span> <span class="empty">*Debes llenar este campo.</span> </label>
+            </div>
+            <div>
+              <label class="phone">
+                <input type="tel" value="Tel/Cel:">
+                <br>
+                <span class="error">*No es un numero valido.</span> <span class="empty">*Debes llenar este campo.</span> </label>
+            </div>
+            <div>
+              <label class="message">
+                <textarea>Mensaje:</textarea>
+                <br>
+                <span class="error">*El mesnaje es muy corto.</span> <span class="empty">*Debes llenar este campo.</span> </label>
+            </div>
+            <div class="buttons-wrapper"><a class="button" data-type="reset">Limpiar</a><a class="button" data-type="submit">Enviar</a></div>
+          </fieldset>
+        </form>
+    
+     </article>
+      </div>
+     </div>
+  </div>  
+ </section>   
+ </div>
+<div class="block"> 
+     <!--==============================footer================================-->
+     <footer>
+    <div class="main aligncenter"> 
+       <span><strong>Cataleya salón & barbershop | 2024 </span> </div>
+        </div>
+  </footer>
+    </div>
+</body>
+</html>
