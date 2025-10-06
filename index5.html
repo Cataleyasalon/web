@@ -66,14 +66,21 @@
     <!-- Contenedor principal responsive: ocupa todo el ancho en móvil, limitado en escritorio -->
     <div id="app" class="card p-6 sm:p-8 lg:p-10 w-full max-w-lg mx-4 rounded-xl transition-all duration-300">
 
-        <!-- Logo/Título (Mejorado para responsividad) -->
-        <div class="text-center mb-6">
-            <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-wider">
-                <!-- El tamaño del ícono escala de 3xl a 4xl en pantallas medianas (md) -->
-                <i class="fas fa-scissors text-accent mr-2 text-3xl md:text-4xl"></i> Cataleya
-            </h1>
+        <!-- ESPACIO PARA EL LOGO (Reemplaza el texto de la app) -->
+        <div id="logo-image-container" class="text-center mb-6">
+            
+                Aquí puedes insertar tu etiqueta <img> con la URL de tu logo.
+                Ejemplo (Descomenta para probar con un placeholder):
+            <img src="https://github.com/Cataleyasalon/web/logo.png" 
+                alt="Logo de la Aplicación" 
+                class="mx-auto rounded-lg border-2 border-accent p-2">
+            
+            <div class="h-16 w-32 mx-auto rounded-lg border-2 border-accent flex items-center justify-center text-accent font-bold">
+                LOGO
+            </div>
         </div>
-        <!-- El tamaño de la fuente escala de sm a base en pantallas pequeñas/medianas -->
+        
+        <!-- Descripción de la app (mantenida) -->
         <p class="text-center text-gray-400 mb-8 text-sm sm:text-base">Sistema de Gestión de Citas</p>
 
         <!-- Contenedor Principal (Cambia de vista con JS) -->
@@ -403,7 +410,7 @@
         }
 
         // =======================================================
-        // RECONOCIMIENTO DE VOZ (DICTADO) - CORRECCIÓN CRÍTICA DE FECHA
+        // RECONOCIMIENTO DE VOZ (DICTADO)
         // =======================================================
 
         /** Inicializa el reconocimiento de voz. */
@@ -601,7 +608,6 @@
                 let content = '';
 
                 if (appointmentsTomorrow.length > 0) {
-
                     title = `🔔 Citas para Mañana (${tomorrowDateString.split('-').reverse().join('/')})`;
                     content = appointmentsTomorrow.map(apt => `
                         <div class="border-l-4 border-accent pl-3 py-2 bg-gray-800 rounded-lg">
