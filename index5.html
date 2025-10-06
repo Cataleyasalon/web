@@ -464,24 +464,23 @@
             }
         }
 
-        /** * Procesa el texto reconocido para extraer nombre y fecha/hora.
-         * Se usa una lógica defensiva de conversión a formato 24h.
+        /** Procesa el texto reconocido para extraer nombre y fecha/hora.
+         * Se usa el constructor new Date(año, mesIndex, día, hora, minutos) para máxima fiabilidad.
          */
         function processVoiceCommand(text) {
             
             // 1. Normalizar y preparar el texto
             console.log('Transcript recibido (Original):', text);
             // Normalizar a minúsculas y quitar acentos (para que "octubre" y "octubre" coincidan)
-            const lowerText = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); 
+            const lowerText = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ''); 
             
             // Regex: Captura día, mes, hora y marcador de tiempo (am/pm/tarde/mañana)
-            // Esto es más robusto porque se basa en índices numéricos
             const dateRegex = /(\d{1,2})\s+(de|del)?\s*(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+.*?(\d{1,2})(:\d{2})?\s+(de la manana|de la tarde|pm|am)/i;
             
             const match = lowerText.match(dateRegex);
 
             if (!match) {
-                showModal(`No pude encontrar una fecha y hora clara en: "${text}". Por favor, intenta de nuevo (Ej: "Agendar a Juan el 10 de octubre a las 3 de la tarde").`);
+                showModal(`No pude encontrar una fecha y hora clara en: "${text}". Por favor, intenta de nuevo (Ej: "Agendar a Juan Pérez el 10 de octubre a las 3 de la tarde").`);
                 setView('home');
                 return;
             }
@@ -495,7 +494,7 @@
                 name = 'Cliente Dictado';
             }
 
-            // 3. RECONSTRUIR LA CADENA DE FECHA
+            // 3. RECONSTRUIR LOS COMPONENTES NUMÉRICOS DE LA FECHA
             const day = match[1];
             const rawMonth = match[3];
             let hour = parseInt(match[4], 10);
@@ -503,15 +502,15 @@
             const rawMarker = match[6];
             const currentYear = new Date().getFullYear();
 
-            // Mapeo de meses (necesario para la compatibilidad consistente con Date en JS)
-            const monthMap = {
-                'enero': 'Jan', 'febrero': 'Feb', 'marzo': 'Mar', 'abril': 'Apr',
-                'mayo': 'May', 'junio': 'Jun', 'julio': 'Jul', 'agosto': 'Aug',
-                'septiembre': 'Sep', 'octubre': 'Oct', 'noviembre': 'Nov', 'diciembre': 'Dec'
+            // Mapeo de meses a índice numérico (0 para Enero, 11 para Diciembre)
+            const monthIndexMap = {
+                'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3,
+                'mayo': 4, 'junio': 5, 'julio': 6, 'agosto': 7,
+                'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11
             };
-            const monthEng = monthMap[rawMonth];
+            const monthIndex = monthIndexMap[rawMonth];
             
-            if (!monthEng) {
+            if (monthIndex === undefined) {
                 showModal(`Error de mes: "${rawMonth}" no se reconoce como un mes válido.`);
                 setView('home');
                 return;
@@ -529,17 +528,21 @@
                     hour = 0;
                 }
             }
-            
-            // Crea una cadena en formato que JS Date() entienda consistentemente: "Month Day Year HH:MM:SS" (24h format)
-            const hour24 = String(hour).padStart(2, '0');
-            const dateString = `${monthEng} ${day} ${currentYear} ${hour24}:${minutes}:00`;
 
-            console.log('Fecha construida para JS:', dateString); // Log de depuración
+            // Convertir strings/numbers a números para el constructor
+            const yearNum = currentYear;
+            const dayNum = parseInt(day, 10);
+            const hourNum = hour; // ya es un entero 0-23
+            const minuteNum = parseInt(minutes, 10);
             
-            const aptDate = new Date(dateString);
+            // CONSTRUCCIÓN DE FECHA MÁS ROBUSTA (AÑO, MES_INDEX, DIA, HORAS, MINUTOS, SEGUNDOS)
+            const aptDate = new Date(yearNum, monthIndex, dayNum, hourNum, minuteNum, 0);
+
+            console.log(`Componentes usados: Año: ${yearNum}, MesIndex (0-11): ${monthIndex}, Día: ${dayNum}, Hora (24h): ${hourNum}, Minutos: ${minuteNum}`); // Log de depuración
 
             if (isNaN(aptDate.getTime())) {
-                showModal(`Error (Fecha Inválida): No pude crear una fecha válida con el texto procesado. Los componentes fueron: ${monthEng} ${day}, ${currentYear} a las ${hour24}:${minutes}.`);
+                // Mensaje de error mejorado para indicar los componentes numéricos fallidos
+                showModal(`Error (Fecha Inválida): No pude crear una fecha válida. Componentes: MesIndex=${monthIndex}, Día=${dayNum}, Hora=${hourNum}:${minuteNum} del ${yearNum}. Revisa que el día sea válido para el mes.`);
                 setView('home');
                 return;
             }
@@ -598,6 +601,7 @@
                 let content = '';
 
                 if (appointmentsTomorrow.length > 0) {
+
                     title = `🔔 Citas para Mañana (${tomorrowDateString.split('-').reverse().join('/')})`;
                     content = appointmentsTomorrow.map(apt => `
                         <div class="border-l-4 border-accent pl-3 py-2 bg-gray-800 rounded-lg">
