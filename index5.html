@@ -69,8 +69,6 @@
 
         <!-- Logo/Título (Mejorado para responsividad) -->
         <div class="text-center mb-6">
-            <!-- Placeholder para Logo de imagen: descomentar y reemplazar el URL si se usa un logo -->
-            <!-- <img src="URL_DEL_LOGO" alt="Logo Cataleya" class="mx-auto h-16 mb-4"> -->
             <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-wider">
                 <!-- El tamaño del ícono escala de 3xl a 4xl en pantallas medianas (md) -->
                 <i class="fas fa-scissors text-accent mr-2 text-3xl md:text-4xl"></i> Cataleya
@@ -476,37 +474,46 @@
             }
         }
 
-        /** Procesa el texto reconocido para extraer nombre y fecha/hora. */
+        /** * Procesa el texto reconocido para extraer nombre y fecha/hora.
+         * Se ha mejorado la regex para mayor tolerancia a frases naturales.
+         */
         function processVoiceCommand(text) {
-            // Un parser de voz real sería complejo, esto es un ejemplo simplificado.
-            // Intenta buscar el nombre y una fecha/hora usando patrones simples.
             
             const lowerText = text.toLowerCase();
-            const dateRegex = /(\d{1,2}) (de|del) (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre) (a las|a la|el) (\d{1,2})(:\d{2})? (de la mañana|de la tarde|pm|am)?/i;
+            
+            // Regex mejorada: Busca [Día] [de/del] [Mes] seguido por cualquier cosa (.*?) y luego la [Hora] [am/pm].
+            // \s+ permite uno o más espacios. .*? permite cualquier caracter intermedio (como "a las").
+            const dateRegex = /(\d{1,2})\s+(de|del)\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+.*?(\d{1,2})(:\d{2})?\s+(de la mañana|de la tarde|pm|am)/i;
             
             const match = lowerText.match(dateRegex);
 
             if (!match) {
-                showModal(`No pude encontrar una fecha y hora clara en: "${text}". Por favor, inténtalo de nuevo.`);
+                showModal(`No pude encontrar una fecha y hora clara en: "${text}". Por favor, inténtalo de nuevo. Asegúrate de incluir el día, el mes, la hora y 'de la mañana' o 'de la tarde'.`);
                 setView('home');
                 return;
             }
 
-            // Simplificación: asumimos que todo antes de la fecha es el nombre (o parte de la instrucción)
+            // 1. EXTRAER EL NOMBRE (Todo lo que precede a la coincidencia de la fecha)
             const rawNamePart = text.substring(0, match.index).trim();
             
-            // Intentamos limpiar la parte del nombre de palabras clave (e.g., "agendar a")
+            // Limpiar la parte del nombre de palabras clave (ej., "agendar a")
             let name = rawNamePart.replace(/agendar (a|una cita a|para) /i, '').trim();
 
             if (name === '') {
                 name = 'Cliente Sin Nombre';
             }
             
-            // Reconstruye la cadena de fecha para que el Date constructor de JS la entienda mejor (esto es muy frágil, pero funciona como demo)
-            // En una aplicación real se usaría una librería de parsing de lenguaje natural como 'Chrono' o un backend.
-            let dateString = match[0].replace('de la mañana', 'am').replace('de la tarde', 'pm').replace('a las', '');
+            // 2. RECONSTRUIR LA CADENA DE FECHA para que Date.parse() la interprete
+            let dateString = match[0];
             
-            // Simplificación: Asigna la fecha al año actual
+            // Reemplaza las frases horarias con formatos estándar AM/PM.
+            dateString = dateString.replace('de la mañana', 'am').replace('de la tarde', 'pm');
+            
+            // Elimina preposiciones que Date.parse() podría no entender (a las, a la, el)
+            dateString = dateString.replace(/a\s+las|a\s+la/i, ' ');
+            dateString = dateString.replace(/\sel\s/i, ' ').trim(); 
+            
+            // Asigna la fecha al año actual (necesario para que JS sepa en qué año agendar)
             const currentYear = new Date().getFullYear();
             dateString += ` ${currentYear}`; 
 
@@ -514,7 +521,8 @@
             const aptDate = new Date(dateString);
 
             if (isNaN(aptDate.getTime())) {
-                showModal(`Error: No pude interpretar la fecha: "${dateString}".`);
+                // Si la conversión falla, mostramos el formato fallido para depuración
+                showModal(`Error (Formato): No pude interpretar la fecha: "${dateString}".`);
                 setView('home');
                 return;
             }
@@ -522,10 +530,10 @@
             // Confirmación antes de agendar (Reemplazo de 'confirm()')
             showModal(`¿Quieres agendar a ${name} para el ${formatDateTime(aptDate)}? \n\n (Nota: En este ejemplo, la cita se agendará automáticamente. Si hubiese un botón de "Confirmar", lo presionarías aquí).`);
 
-            // Ejecuta el agendamiento después de una breve pausa para que el usuario pueda leer el mensaje
+            // Ejecuta el agendamiento después de una breve pausa
             setTimeout(() => {
                 addAppointment(name, aptDate.toISOString());
-            }, 1000); // 1 segundo de espera
+            }, 1000); 
         }
 
         // =======================================================
