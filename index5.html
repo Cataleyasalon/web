@@ -33,7 +33,6 @@
             min-height: 100vh;
             display: flex;
             justify-content: center;
-            /* Permite que el contenido se centre y se ajuste verticalmente */
             align-items: center; 
         }
 
@@ -142,8 +141,6 @@
 
         /** Reproduce un sonido de notificación simple (beep) usando Web Audio API. */
         function playNotificationSound() {
-            // La Web Audio API a menudo requiere una interacción de usuario previa
-            // para reproducir sonido. En este entorno, funcionará si ya hubo un clic.
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 const oscillator = audioCtx.createOscillator();
@@ -170,7 +167,7 @@
 
         /** Muestra el modal de recordatorio diario. */
         function showDailyReminderModal(title, htmlContent) {
-            playNotificationSound(); // <-- Llamada al sonido
+            playNotificationSound(); 
             document.getElementById('reminder-title').textContent = title;
             document.getElementById('reminder-content').innerHTML = htmlContent;
             document.getElementById('reminder-modal').classList.remove('hidden');
@@ -206,7 +203,7 @@
             try {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
             } catch (error) {
-                console.error('Error saving to localStorage:', error);
+                console.error('Error al guardar en localStorage:', error);
                 showModal('Error al guardar datos. El almacenamiento podría estar lleno o desactivado.');
             }
         }
@@ -238,7 +235,7 @@
                     return [];
                 }
             } catch (error) {
-                console.error('Error loading or parsing localStorage:', error);
+                console.error('Error al cargar o analizar localStorage:', error);
                 showModal('Error al cargar datos. Los datos de citas podrían estar corruptos.');
                 return [];
             }
@@ -385,8 +382,6 @@
 
         /** Confirma y ejecuta la cancelación de una cita. */
         function confirmCancelAppointment(id) {
-            // Este es un reemplazo simplificado del 'confirm()', ya que 'confirm()' no funciona en el entorno.
-            // En una app real, aquí se mostraría un modal de confirmación.
             
             const aptToCancel = appointments.find(apt => apt.id === id);
 
@@ -397,7 +392,7 @@
             }
             
             // Simulación de confirmación (asume que si el usuario presiona el botón, quiere cancelar)
-            const confirmed = true; // Forzamos la cancelación inmediata para este entorno
+            const confirmed = true; 
             
             if (confirmed) {
                 appointments = appointments.filter(apt => apt.id !== id);
@@ -408,7 +403,7 @@
         }
 
         // =======================================================
-        // RECONOCIMIENTO DE VOZ (DICTADO)
+        // RECONOCIMIENTO DE VOZ (DICTADO) - CORRECCIÓN CRÍTICA DE FECHA
         // =======================================================
 
         /** Inicializa el reconocimiento de voz. */
@@ -454,86 +449,112 @@
             };
 
             recognition.onend = () => {
-                if (currentView === 'home' || currentView === 'cancel' || currentView === 'calendar') {
-                   // Ya se manejó la transición o finalización, no hacer nada.
-                } else {
-                    // Si terminó por sí mismo, re-renderizar la vista de inicio
-                    // Esto evita un bucle si el usuario no dijo nada y el evento 'onend' se disparó después de 'onerror'
-                    if (viewContainer.querySelector('.animate-pulse')) {
-                       setView('home');
-                    }
+                // Solo regresamos a home si la vista de escucha está activa
+                if (viewContainer.querySelector('.animate-pulse')) {
+                   setView('home');
                 }
             };
 
             try {
                 recognition.start();
             } catch (e) {
-                console.error("Error starting recognition:", e);
+                console.error("Error al iniciar el reconocimiento:", e);
                 showModal("Error al iniciar el reconocimiento de voz. Puede que ya esté activo.");
                 setView('home');
             }
         }
 
         /** * Procesa el texto reconocido para extraer nombre y fecha/hora.
-         * Se ha mejorado la regex para mayor tolerancia a frases naturales.
+         * Se usa una lógica defensiva de conversión a formato 24h.
          */
         function processVoiceCommand(text) {
             
-            const lowerText = text.toLowerCase();
+            // 1. Normalizar y preparar el texto
+            console.log('Transcript recibido (Original):', text);
+            // Normalizar a minúsculas y quitar acentos (para que "octubre" y "octubre" coincidan)
+            const lowerText = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); 
             
-            // Regex mejorada: Busca [Día] [de/del] [Mes] seguido por cualquier cosa (.*?) y luego la [Hora] [am/pm].
-            // \s+ permite uno o más espacios. .*? permite cualquier caracter intermedio (como "a las").
-            const dateRegex = /(\d{1,2})\s+(de|del)\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+.*?(\d{1,2})(:\d{2})?\s+(de la mañana|de la tarde|pm|am)/i;
+            // Regex: Captura día, mes, hora y marcador de tiempo (am/pm/tarde/mañana)
+            // Esto es más robusto porque se basa en índices numéricos
+            const dateRegex = /(\d{1,2})\s+(de|del)?\s*(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+.*?(\d{1,2})(:\d{2})?\s+(de la manana|de la tarde|pm|am)/i;
             
             const match = lowerText.match(dateRegex);
 
             if (!match) {
-                showModal(`No pude encontrar una fecha y hora clara en: "${text}". Por favor, inténtalo de nuevo. Asegúrate de incluir el día, el mes, la hora y 'de la mañana' o 'de la tarde'.`);
+                showModal(`No pude encontrar una fecha y hora clara en: "${text}". Por favor, intenta de nuevo (Ej: "Agendar a Juan el 10 de octubre a las 3 de la tarde").`);
+                setView('home');
+                return;
+            }
+            
+            // 2. EXTRAER EL NOMBRE
+            const rawNamePart = text.substring(0, match.index).trim();
+            // Limpiar la parte del nombre de palabras clave
+            let name = rawNamePart.replace(/agendar\s*(a|una cita a|para)\s*/i, '').trim();
+
+            if (name === '') {
+                name = 'Cliente Dictado';
+            }
+
+            // 3. RECONSTRUIR LA CADENA DE FECHA
+            const day = match[1];
+            const rawMonth = match[3];
+            let hour = parseInt(match[4], 10);
+            const minutes = match[5] ? match[5].substring(1) : '00';
+            const rawMarker = match[6];
+            const currentYear = new Date().getFullYear();
+
+            // Mapeo de meses (necesario para la compatibilidad consistente con Date en JS)
+            const monthMap = {
+                'enero': 'Jan', 'febrero': 'Feb', 'marzo': 'Mar', 'abril': 'Apr',
+                'mayo': 'May', 'junio': 'Jun', 'julio': 'Jul', 'agosto': 'Aug',
+                'septiembre': 'Sep', 'octubre': 'Oct', 'noviembre': 'Nov', 'diciembre': 'Dec'
+            };
+            const monthEng = monthMap[rawMonth];
+            
+            if (!monthEng) {
+                showModal(`Error de mes: "${rawMonth}" no se reconoce como un mes válido.`);
                 setView('home');
                 return;
             }
 
-            // 1. EXTRAER EL NOMBRE (Todo lo que precede a la coincidencia de la fecha)
-            const rawNamePart = text.substring(0, match.index).trim();
-            
-            // Limpiar la parte del nombre de palabras clave (ej., "agendar a")
-            let name = rawNamePart.replace(/agendar (a|una cita a|para) /i, '').trim();
-
-            if (name === '') {
-                name = 'Cliente Sin Nombre';
+            // Conversión de hora a formato 24h
+            if (rawMarker.includes('tarde') || rawMarker.includes('pm')) {
+                // Si la hora es PM y no es 12 PM (mediodía), súmale 12.
+                if (hour < 12) {
+                    hour += 12;
+                }
+            } else { // mañana o am
+                // Si es 12 AM (medianoche), conviértelo a 00 horas en 24h
+                if (hour === 12) {
+                    hour = 0;
+                }
             }
             
-            // 2. RECONSTRUIR LA CADENA DE FECHA para que Date.parse() la interprete
-            let dateString = match[0];
-            
-            // Reemplaza las frases horarias con formatos estándar AM/PM.
-            dateString = dateString.replace('de la mañana', 'am').replace('de la tarde', 'pm');
-            
-            // Elimina preposiciones que Date.parse() podría no entender (a las, a la, el)
-            dateString = dateString.replace(/a\s+las|a\s+la/i, ' ');
-            dateString = dateString.replace(/\sel\s/i, ' ').trim(); 
-            
-            // Asigna la fecha al año actual (necesario para que JS sepa en qué año agendar)
-            const currentYear = new Date().getFullYear();
-            dateString += ` ${currentYear}`; 
+            // Crea una cadena en formato que JS Date() entienda consistentemente: "Month Day Year HH:MM:SS" (24h format)
+            const hour24 = String(hour).padStart(2, '0');
+            const dateString = `${monthEng} ${day} ${currentYear} ${hour24}:${minutes}:00`;
 
-            // Intenta convertir la cadena simplificada a un objeto Date
+            console.log('Fecha construida para JS:', dateString); // Log de depuración
+            
             const aptDate = new Date(dateString);
 
             if (isNaN(aptDate.getTime())) {
-                // Si la conversión falla, mostramos el formato fallido para depuración
-                showModal(`Error (Formato): No pude interpretar la fecha: "${dateString}".`);
+                showModal(`Error (Fecha Inválida): No pude crear una fecha válida con el texto procesado. Los componentes fueron: ${monthEng} ${day}, ${currentYear} a las ${hour24}:${minutes}.`);
                 setView('home');
                 return;
             }
+            
+            console.log('Fecha reconstruida (ISO):', aptDate.toISOString());
 
-            // Confirmación antes de agendar (Reemplazo de 'confirm()')
-            showModal(`¿Quieres agendar a ${name} para el ${formatDateTime(aptDate)}? \n\n (Nota: En este ejemplo, la cita se agendará automáticamente. Si hubiese un botón de "Confirmar", lo presionarías aquí).`);
+            // 4. AGENDAR CITA
+            const finalMessage = `Dictado Procesado:\nCliente: ${name}\nFecha: ${formatDateTime(aptDate)}\n\n(Se agendará automáticamente, revisa el calendario.)`;
+            
+            showModal(finalMessage);
 
             // Ejecuta el agendamiento después de una breve pausa
             setTimeout(() => {
                 addAppointment(name, aptDate.toISOString());
-            }, 1000); 
+            }, 1500);
         }
 
         // =======================================================
@@ -550,7 +571,6 @@
 
         /**
          * Verifica si son las 10:00 PM o más tarde y muestra las citas del día siguiente.
-         * Se usa localStorage para evitar mostrar el recordatorio más de una vez por día.
          */
         function checkAndScheduleDailyReminder() {
             const now = new Date();
