@@ -3,7 +3,7 @@
     "name": "Cataleya Citas",
     "short_name": "Cataleya",
     "description": "Sistema de gestión de citas con dictado de voz.",
-    "start_url": "web/index5.html", 
+    "start_url": "/web/index5.html", 
     "display": "standalone",
     "background_color": "#0d1117",
     "theme_color": "#a78bfa",
