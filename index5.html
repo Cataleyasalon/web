@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="manifest" href="/manifest.json">
     <title>Cataleya - Sistema de Citas (v2.2)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -738,6 +739,19 @@
             renderView();
             checkAndScheduleDailyReminder(); 
         };
+		
+		// AÑADE ESTO AL FINAL DE TU ETIQUETA <script> EXISTENTE
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(registration => {
+        console.log('ServiceWorker registrado con éxito:', registration);
+      })
+      .catch(error => {
+        console.log('Fallo el registro de ServiceWorker:', error);
+      });
+  });
+}
 
     </script>
 </body>
