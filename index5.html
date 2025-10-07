@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="manifest.json">
     <title>Cataleya - Sistema de Citas (v2.2)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -718,18 +718,40 @@
                             </div>
                         `;
                     }).join('<div class="h-3"></div>');
-                    
                 } else {
-                    title = `Recordatorio Diario 🌙`;
-                    content = `<p class="text-white text-center py-4">¡Excelente! No hay citas programadas para el día de mañana. Puedes descansar tranquilo/a.</p>`;
+                    title = `✅ Mañana Despejada (${tomorrowDateString.split('-').reverse().join('/')})`;
+                    content = `<p class="text-gray-400 text-center py-4">¡Excelente! No tienes citas agendadas para mañana.</p>`;
                 }
                 
-                showDailyReminderModal(title, content); 
-                
+                showDailyReminderModal(title, content);
                 localStorage.setItem(reminderShownKey, 'true');
-            } 
+            }
         }
+        
+        // =======================================================
+        // REGISTRO DEL SERVICE WORKER (PARA LA FUNCIÓN PWA) 🟢 AÑADIDO
+        // =======================================================
 
+        /** Función para registrar el Service Worker. */
+        function registerServiceWorker() {
+            // Verifica si el navegador soporta Service Workers (necesario para PWA)
+            if ('serviceWorker' in navigator) {
+                // Registra el Service Worker una vez que la página haya cargado
+                window.addEventListener('load', () => {
+                    // Usamos una ruta relativa para mayor compatibilidad
+                    navigator.serviceWorker.register('service-worker.js') 
+                      .then(registration => {
+                        console.log('ServiceWorker registrado con éxito:', registration.scope);
+                      })
+                      .catch(error => {
+                        console.log('Fallo el registro de ServiceWorker:', error);
+                      });
+                });
+            } else {
+                console.log('El navegador no soporta Service Workers. La función PWA no estará disponible.');
+            }
+        }
+        
         // =======================================================
         // INICIO DE LA APLICACIÓN
         // =======================================================
@@ -738,21 +760,10 @@
             appointments = loadAppointments();
             renderView();
             checkAndScheduleDailyReminder(); 
+            
+            // 🟢 LLAMADA A LA FUNCIÓN PWA
+            registerServiceWorker(); 
         };
-		
-		// AÑADE ESTO AL FINAL DE TU ETIQUETA <script> EXISTENTE
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(registration => {
-        console.log('ServiceWorker registrado con éxito:', registration);
-      })
-      .catch(error => {
-        console.log('Fallo el registro de ServiceWorker:', error);
-      });
-  });
-}
-
     </script>
 </body>
 </html>
