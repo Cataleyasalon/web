@@ -10,13 +10,13 @@
     "icons": [
         {
             // Ruta corregida: Si el manifiesto y el icono están en /web/, solo se necesita el nombre del archivo.
-            "src": "icono192.png", 
+            "src": "/web/icono192.png", 
             "sizes": "192x192", 
             "type": "image/png"
         },
         {
             // Ruta corregida: Solo el nombre del archivo.
-            "src": "icono192.png", 
+            "src": "/web/icono512.png", 
             "sizes": "512x512",
             "type": "image/png"
         }
