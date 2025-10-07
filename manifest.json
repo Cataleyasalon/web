@@ -12,13 +12,13 @@
     "icons": [
         {
             // Ruta del icono relativa o absoluta si es necesario, pero solo en 'src'
-            "src": "icono192x192.png", 
+            "src": "web/icono192.png", 
             "sizes": "192x192", 
             "type": "image/png"
         },
         {
             // Asegúrate de que esta ruta sea correcta
-            "src": "icono512x512.png", 
+            "src": "web/icono512.png", 
             "sizes": "512x512",
             "type": "image/png" 
         }
