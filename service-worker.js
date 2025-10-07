@@ -3,7 +3,7 @@
 const CACHE_NAME = 'cataleya-cache-v2'; // Cambiado a v2 para forzar la actualización
 const urlsToCache = [
     // La raíz de tu aplicación web (el scope)
-    'web/', 
+    '/', 
     // Archivos principales: usa rutas relativas
     'index5.html', 
     'manifest.json',

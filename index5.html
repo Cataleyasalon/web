@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="manifest.json"> 
     <title>Cataleya - Sistema de Citas (v2.2)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -100,7 +100,7 @@
         </div>
         
         <div id="view-container">
-            </div>
+        </div>
 
         <div id="message-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
             <div class="bg-secondary-dark p-6 rounded-lg max-w-sm w-full text-center border border-accent">
@@ -535,7 +535,8 @@
                  return;
             }
             
-            const confirmed = true; 
+            // CORRECCIÓN: Usar confirm() para requerir la aprobación del usuario
+            const confirmed = window.confirm(`¿Estás seguro de que quieres cancelar la cita de ${aptToCancel.name} el ${formatDateTime(aptToCancel.dateTime)}?`);
             
             if (confirmed) {
                 appointments = appointments.filter(apt => apt.id !== id);
@@ -718,52 +719,45 @@
                             </div>
                         `;
                     }).join('<div class="h-3"></div>');
-                } else {
-                    title = `✅ Mañana Despejada (${tomorrowDateString.split('-').reverse().join('/')})`;
-                    content = `<p class="text-gray-400 text-center py-4">¡Excelente! No tienes citas agendadas para mañana.</p>`;
+                    
+                    showDailyReminderModal(title, content);
+                    localStorage.setItem(reminderShownKey, 'true'); // Marca como mostrado
                 }
-                
-                showDailyReminderModal(title, content);
-                localStorage.setItem(reminderShownKey, 'true');
             }
         }
         
         // =======================================================
-        // REGISTRO DEL SERVICE WORKER (PARA LA FUNCIÓN PWA) 🟢 AÑADIDO
+        // INICIALIZACIÓN
         // =======================================================
-
-        /** Función para registrar el Service Worker. */
+        
+        /** REGISTRO DEL SERVICE WORKER (PWA) - ¡CÓDIGO CORREGIDO Y FALTANTE! */
         function registerServiceWorker() {
-            // Verifica si el navegador soporta Service Workers (necesario para PWA)
             if ('serviceWorker' in navigator) {
-                // Registra el Service Worker una vez que la página haya cargado
                 window.addEventListener('load', () => {
-                    // Usamos una ruta relativa para mayor compatibilidad
-                    navigator.serviceWorker.register('service-worker.js') 
+                    // Usamos el scope '/web/' si tu página se carga desde https://cataleyasalon.github.io/web/
+                    navigator.serviceWorker.register('service-worker.js', { scope: '/web/' }) 
                       .then(registration => {
-                        console.log('ServiceWorker registrado con éxito:', registration.scope);
+                        console.log('ServiceWorker registrado con éxito. Scope:', registration.scope);
                       })
                       .catch(error => {
-                        console.log('Fallo el registro de ServiceWorker:', error);
+                        console.error('Fallo el registro de ServiceWorker. Revisa la ruta y el archivo SW:', error);
                       });
                 });
             } else {
-                console.log('El navegador no soporta Service Workers. La función PWA no estará disponible.');
+                console.warn('Este navegador no soporta Service Workers.');
             }
         }
-        
-        // =======================================================
-        // INICIO DE LA APLICACIÓN
-        // =======================================================
-        
-        window.onload = () => {
+
+        // --- Inicio de la aplicación ---
+        window.onload = function() {
             appointments = loadAppointments();
-            renderView();
-            checkAndScheduleDailyReminder(); 
-            
-            // 🟢 LLAMADA A LA FUNCIÓN PWA
-            registerServiceWorker(); 
+            renderView(); 
+            registerServiceWorker(); // <--- ¡REGISTRO AÑADIDO AQUÍ!
+            checkAndScheduleDailyReminder();
         };
+
+        // El resto del código de la función checkAndScheduleDailyReminder()
+        // debe ser copiado para completar la función
     </script>
 </body>
 </html>
