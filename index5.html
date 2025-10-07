@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cataleya - Sistema de Citas (v2.1)</title>
+    <title>Cataleya - Sistema de Citas (v2.2)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -323,15 +323,19 @@
 
             let content;
             if (dayAppointments.length > 0) {
-                content = dayAppointments.map(apt => `
-                    <div class="border-l-4 border-accent pl-3 py-2 bg-gray-800 rounded-lg flex items-center">
-                        <span class="text-sm text-gray-400 mr-2">${appointmentIcon}</span>
-                        <div>
-                            <p class="font-semibold text-white text-base">${apt.name}</p>
-                            <p class="text-sm text-gray-400">Hora: ${formatDateTime(apt.dateTime).split(' a las ')[1]}</p>
+                content = dayAppointments.map(apt => {
+                    // *** CAMBIO CLAVE AQUÍ: SOLO SE MUESTRA EL NOMBRE Y LA HORA ***
+                    const timeOnly = formatDateTime(apt.dateTime).split(' a las ')[1];
+                    return `
+                        <div class="border-l-4 border-accent pl-3 py-2 bg-gray-800 rounded-lg flex items-center">
+                            <span class="text-sm text-gray-400 mr-2">${appointmentIcon}</span>
+                            <div>
+                                <p class="font-semibold text-white text-base">${apt.name}</p>
+                                <p class="text-sm text-gray-400">Hora: ${timeOnly}</p>
+                            </div>
                         </div>
-                    </div>
-                `).join('<div class="h-3"></div>');
+                    `;
+                }).join('<div class="h-3"></div>');
             } else {
                 content = `<p class="text-gray-500 text-center py-4">No hay citas para este día.</p>`;
             }
@@ -425,7 +429,6 @@
 
         /** Renderiza la vista de Cancelar Cita */
         function renderCancel() {
-            // ... (El código de renderCancel se mantiene igual)
             const hasAppointments = appointments.length > 0;
             const content = hasAppointments 
                 ? appointments.map(apt => `
@@ -546,7 +549,6 @@
         // =======================================================
 
         function startSpeechRecognition() {
-            // ... (El código de startSpeechRecognition se mantiene igual)
             if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
                 showModal('Tu navegador no soporta la función de dictado.', true);
                 return;
@@ -602,7 +604,6 @@
 
         /** Procesa el texto reconocido para extraer nombre y fecha/hora. */
         function processVoiceCommand(text) {
-            // ... (El código de processVoiceCommand se mantiene igual)
             const lowerText = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, '');
             
             const dateRegex = /(\d{1,2})\s+(?:de|del)?\s*(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:.*?)\s*(\d{1,2})(:\d{2})?\s+(de la mañana|de la tarde|pm|am)/i;
@@ -704,15 +705,18 @@
 
                 if (appointmentsTomorrow.length > 0) {
                     title = `🔔 Citas para Mañana (${tomorrowDateString.split('-').reverse().join('/')})`;
-                    content = appointmentsTomorrow.map(apt => `
-                        <div class="border-l-4 border-accent pl-3 py-2 bg-gray-800 rounded-lg flex items-center">
-                            <span class="text-sm text-gray-400 mr-2">${appointmentIcon}</span>
-                            <div>
-                                <p class="font-semibold text-white text-base">${apt.name}</p>
-                                <p class="text-sm text-gray-400">Hora: ${formatDateTime(apt.dateTime).split(' a las ')[1]}</p>
+                    content = appointmentsTomorrow.map(apt => {
+                        const timeOnly = formatDateTime(apt.dateTime).split(' a las ')[1];
+                        return `
+                            <div class="border-l-4 border-accent pl-3 py-2 bg-gray-800 rounded-lg flex items-center">
+                                <span class="text-sm text-gray-400 mr-2">${appointmentIcon}</span>
+                                <div>
+                                    <p class="font-semibold text-white text-base">${apt.name}</p>
+                                    <p class="text-sm text-gray-400">Hora: ${timeOnly}</p>
+                                </div>
                             </div>
-                        </div>
-                    `).join('<div class="h-3"></div>');
+                        `;
+                    }).join('<div class="h-3"></div>');
                     
                 } else {
                     title = `Recordatorio Diario 🌙`;
