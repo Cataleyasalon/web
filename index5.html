@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cataleya - Sistema de Citas</title>
+    <title>Cataleya - Sistema de Citas (v2.0)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -18,6 +18,7 @@
                         'accent': '#a78bfa', // Violet-400
                         'accent-hover': '#8b5cf6', // Violet-500
                         'cancel': '#f87171', // Red-400
+                        'occupied-day': '#8b5cf6', // Violet-500 para días ocupados
                     }
                 }
             }
@@ -55,6 +56,34 @@
         }
         .custom-scrollbar::-webkit-scrollbar-track {
             background: #1f2937; /* Gray-800 */
+        }
+        
+        /* Estilos del calendario */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+        .day-cell {
+            padding: 5px;
+            height: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+        .day-cell:hover:not(.day-name):not(.disabled) {
+            background-color: #1f2937;
+        }
+        .occupied-dot {
+            height: 6px;
+            width: 6px;
+            background-color: #a78bfa; /* accent */
+            border-radius: 50%;
+            margin-top: 2px;
         }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
@@ -107,6 +136,7 @@
         let currentView = 'home';
         let appointments = [];
         let recognition = null; // Para la API de voz
+        let currentCalendarDate = new Date(); // Para el calendario mensual
 
         const viewContainer = document.getElementById('view-container');
         const messageModal = document.getElementById('message-modal');
@@ -118,6 +148,7 @@
 
         /** Muestra un modal personalizado en lugar de 'alert()' */
         function showModal(message) {
+            playNotificationSound(); // Alerta sonora para cualquier pop-up
             modalText.textContent = message;
             messageModal.classList.remove('hidden');
         }
@@ -128,34 +159,37 @@
         }
 
         /** Reproduce un sonido de notificación simple (beep) usando Web Audio API. */
-        function playNotificationSound() {
+        function playNotificationSound(frequency = 440, duration = 0.2) {
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 const oscillator = audioCtx.createOscillator();
                 const gainNode = audioCtx.createGain();
 
-                oscillator.type = 'sine'; // Tono simple
-                oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // Frecuencia A4
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
                 
-                // Conectar y configurar volumen
                 oscillator.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
                 gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-                gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.01); // Ataque rápido
+                gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.01);
 
                 oscillator.start();
                 
-                // Detener después de 0.2 segundos (chime corto)
-                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2); // Caída rápida
-                oscillator.stop(audioCtx.currentTime + 0.2);
+                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
+                oscillator.stop(audioCtx.currentTime + duration);
             } catch (e) {
                 console.warn('Fallo al reproducir sonido (posiblemente por restricciones de navegador):', e);
             }
         }
+        
+        /** Reproduce un sonido de error (más áspero) */
+        function playErrorSound() {
+            playNotificationSound(200, 0.4); // Frecuencia baja, más larga
+        }
 
         /** Muestra el modal de recordatorio diario. */
         function showDailyReminderModal(title, htmlContent) {
-            playNotificationSound(); 
+            playNotificationSound(880, 0.5); // Sonido más agudo para recordatorio importante
             document.getElementById('reminder-title').textContent = title;
             document.getElementById('reminder-content').innerHTML = htmlContent;
             document.getElementById('reminder-modal').classList.remove('hidden');
@@ -178,11 +212,19 @@
             return `${dateStr} a las ${timeStr}`;
         }
 
+        /** Formatea una fecha solo como 'YYYY-MM-DD' para comparación */
+        function formatDateOnly(date) {
+            const d = new Date(date);
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
         // =======================================================
-        // GESTIÓN DE LOCALSTORAGE CON REGLA DE BORRADO MENSUAL
+        // GESTIÓN DE LOCALSTORAGE
         // =======================================================
 
-        /** Guarda el estado actual de las citas y el timestamp de reinicio. */
         function saveAppointments(apts, timestamp = Date.now()) {
             const data = {
                 appointments: apts,
@@ -196,29 +238,21 @@
             }
         }
 
-        /** Carga las citas y aplica la lógica de reinicio mensual. */
         function loadAppointments() {
             try {
                 const storedData = localStorage.getItem(STORAGE_KEY);
                 if (storedData) {
                     const data = JSON.parse(storedData);
-                    
                     const lastDate = new Date(data.lastResetTimestamp);
                     const now = new Date();
 
-                    // Lógica de Reinicio Mensual: Si el mes o el año ha cambiado, reinicia.
                     if (now.getFullYear() > lastDate.getFullYear() || now.getMonth() > lastDate.getMonth()) {
                         console.log('¡Nuevo mes detectado! Reiniciando la base de datos de citas.');
-                        // Guardar un nuevo timestamp de reinicio con la lista vacía
                         saveAppointments([], now.getTime());
                         return []; 
                     }
-
-                    // Si no es nuevo mes, retorna las citas existentes.
                     return data.appointments.sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
-
                 } else {
-                    // Si no hay datos, inicializa y guarda el timestamp actual.
                     saveAppointments([], Date.now());
                     return [];
                 }
@@ -234,8 +268,11 @@
         // =======================================================
 
         /** Rota la vista de la aplicación. */
-        function setView(viewName) {
+        function setView(viewName, date = null) {
             currentView = viewName;
+            if (viewName === 'calendar' && date) {
+                currentCalendarDate = new Date(date);
+            }
             renderView();
         }
 
@@ -263,34 +300,114 @@
                 </div>
             `;
         }
+        
+        /** Muestra el detalle de citas para un día específico */
+        function showDayDetails(dateString) {
+            const dayAppointments = appointments.filter(apt => apt.dateTime.startsWith(dateString));
+            const dateDisplay = new Date(dateString).toLocaleDateString('es-ES', {
+                weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+            });
 
-        /** Renderiza la vista de Calendario */
-        function renderCalendar() {
-            const hasAppointments = appointments.length > 0;
-
-            const content = hasAppointments 
-                ? appointments.map(apt => `
-                    <div class="appointment-item p-4 mb-2 bg-secondary-dark rounded-lg flex justify-between items-center transition duration-150 border border-gray-700">
-                        <div>
-                            <p class="text-accent font-bold text-lg">${apt.name}</p>
-                            <p class="text-sm text-gray-400">${formatDateTime(apt.dateTime)}</p>
-                        </div>
+            let content;
+            if (dayAppointments.length > 0) {
+                content = dayAppointments.map(apt => `
+                    <div class="border-l-4 border-accent pl-3 py-2 bg-gray-800 rounded-lg">
+                        <p class="font-semibold text-white text-base">${apt.name}</p>
+                        <p class="text-sm text-gray-400">Hora: ${formatDateTime(apt.dateTime).split(' a las ')[1]}</p>
                     </div>
-                `).join('')
-                : `<p class="text-center text-gray-500 py-8">No hay citas agendadas.</p>`;
+                `).join('<div class="h-3"></div>');
+            } else {
+                content = `<p class="text-gray-500 text-center py-4">No hay citas para este día.</p>`;
+            }
+
+            // Usamos el modal de recordatorio para mostrar los detalles del día
+            showDailyReminderModal(`Citas del ${dateDisplay.charAt(0).toUpperCase() + dateDisplay.slice(1)}`, content);
+        }
+
+
+        /** Renderiza la vista de Calendario Mensual */
+        function renderCalendar() {
+            const date = currentCalendarDate;
+            const year = date.getFullYear();
+            const month = date.getMonth(); // 0-indexed
+
+            const firstDayOfMonth = new Date(year, month, 1);
+            // El día de la semana para el primer día del mes (0=Dom, 6=Sáb)
+            let startingDay = firstDayOfMonth.getDay(); 
+            // Ajuste para empezar la semana en Lunes (0=Dom -> 6, 1=Lun -> 0, etc.)
+            startingDay = startingDay === 0 ? 6 : startingDay - 1; 
+
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+            let daysHtml = '';
+
+            // Días de la semana
+            daysHtml += dayNames.map(day => `<div class="day-cell day-name text-xs font-bold text-accent">${day}</div>`).join('');
+
+            // Espacios vacíos al inicio
+            for (let i = 0; i < startingDay; i++) {
+                daysHtml += '<div class="day-cell bg-secondary-dark/50 disabled"></div>';
+            }
+
+            // Días del mes
+            const occupiedDates = appointments.map(apt => formatDateOnly(apt.dateTime).substring(8, 10)); // Solo el día 'DD'
+            const todayDateOnly = formatDateOnly(new Date()).substring(8, 10);
+            const currentMonthYear = `${year}-${String(month + 1).padStart(2, '0')}`;
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayStr = String(day).padStart(2, '0');
+                const fullDateString = `${currentMonthYear}-${dayStr}`;
+                const isOccupied = occupiedDates.includes(dayStr);
+                const isToday = dayStr === todayDateOnly && new Date().getMonth() === month && new Date().getFullYear() === year;
+                
+                let classes = isToday ? 'bg-accent/30 border border-accent text-white' : 'bg-secondary-dark text-gray-300';
+                
+                daysHtml += `
+                    <div class="day-cell ${classes} hover:bg-secondary-dark/80 transition duration-150" 
+                         onclick="showDayDetails('${fullDateString}')">
+                        <span class="text-sm font-semibold">${day}</span>
+                        ${isOccupied ? '<div class="occupied-dot"></div>' : ''}
+                    </div>
+                `;
+            }
+
 
             viewContainer.innerHTML = `
                 <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
-                    <i class="fas fa-calendar-check mr-2 text-accent"></i> Calendario de Citas
+                    <i class="fas fa-calendar-alt mr-2 text-accent"></i> Calendario Mensual
                 </h2>
-                <div class="max-h-80 overflow-y-auto custom-scrollbar pr-2">
-                    ${content}
+
+                <div class="flex justify-between items-center mb-4 bg-secondary-dark p-3 rounded-lg border border-gray-700">
+                    <button onclick="changeMonth(-1)" class="text-white hover:text-accent transition duration-150 p-2">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <h3 class="text-xl font-bold text-white">${monthNames[month]} ${year}</h3>
+                    <button onclick="changeMonth(1)" class="text-white hover:text-accent transition duration-150 p-2">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
                 </div>
+
+                <div class="calendar-grid">
+                    ${daysHtml}
+                </div>
+
+                <div class="mt-6 flex items-center text-sm text-gray-400">
+                    <div class="occupied-dot mr-2"></div> Cita(s) agendada(s)
+                </div>
+
                 <button onclick="setView('home')"
                     class="mt-6 w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
-                    <i class="fas fa-arrow-left mr-2"></i> Volver
+                    <i class="fas fa-arrow-left mr-2"></i> Volver al Inicio
                 </button>
             `;
+        }
+
+        /** Cambia el mes del calendario y lo re-renderiza */
+        function changeMonth(delta) {
+            const newDate = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() + delta, 1);
+            setView('calendar', newDate);
         }
 
         /** Renderiza la vista de Cancelar Cita */
@@ -346,11 +463,39 @@
         }
 
         // =======================================================
-        // GESTIÓN DE CITAS
+        // GESTIÓN DE CITAS Y CONFLICTOS
         // =======================================================
+
+        /** Verifica si una fecha y hora específica ya tiene una cita */
+        function isTimeSlotOccupied(dateString) {
+            const newTime = new Date(dateString).getTime();
+            
+            // Convertir la hora de la nueva cita a minutos desde medianoche para comparación
+            const newDate = new Date(dateString);
+            const newDateOnly = formatDateOnly(newDate);
+
+            // Filtra solo las citas del mismo día
+            const appointmentsOnSameDay = appointments.filter(apt => {
+                const aptDateOnly = formatDateOnly(new Date(apt.dateTime));
+                return aptDateOnly === newDateOnly;
+            });
+            
+            // Verifica si la nueva hora coincide exactamente con alguna existente (precisión al minuto)
+            const isConflict = appointmentsOnSameDay.some(apt => {
+                return new Date(apt.dateTime).getTime() === newTime;
+            });
+
+            return isConflict;
+        }
 
         /** Agrega una nueva cita. */
         function addAppointment(name, dateString) {
+            if (isTimeSlotOccupied(dateString)) {
+                playErrorSound(); // Alerta sonora de conflicto
+                showModal(`¡ALERTA! La hora y fecha: ${formatDateTime(dateString)} ya están reservadas. Por favor, elige otro horario.`);
+                return;
+            }
+
             const newAppointment = {
                 id: crypto.randomUUID(),
                 name: name.trim(),
@@ -358,18 +503,16 @@
             };
 
             if (new Date(newAppointment.dateTime) < Date.now()) {
+                playErrorSound();
                 showModal('¡Error! No puedes agendar una cita en el pasado.');
                 return;
             }
 
             appointments.push(newAppointment);
             saveAppointments(appointments);
-            // La notificación de éxito se movió a processVoiceCommand para mayor inmediatez,
-            // pero si llamas a esta función directamente, se mostraría aquí:
-            // showModal(`¡Cita agendada! ${name} el ${formatDateTime(newAppointment.dateTime)}.`);
+            showModal(`¡Cita agendada con éxito! ${name} el ${formatDateTime(newAppointment.dateTime)}.`);
             
-            // Regresar a la vista principal
-            setView('home');
+            setView('home'); // Regresar a la vista principal
         }
 
         /** Confirma y ejecuta la cancelación de una cita. */
@@ -383,7 +526,6 @@
                  return;
             }
             
-            // Simulación de confirmación (asume que si el usuario presiona el botón, quiere cancelar)
             const confirmed = true; 
             
             if (confirmed) {
@@ -395,10 +537,9 @@
         }
 
         // =======================================================
-        // RECONOCIMIENTO DE VOZ (DICTADO)
+        // RECONOCIMIENTO DE VOZ (Dictado)
         // =======================================================
 
-        /** Inicializa el reconocimiento de voz. */
         function startSpeechRecognition() {
             if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
                 showModal('Tu navegador no soporta la función de dictado. Por favor, usa un botón de agenda manual.');
@@ -431,17 +572,15 @@
 
             recognition.onerror = (event) => {
                 recognition.stop();
-                console.error('Speech recognition error:', event.error);
                 if (event.error !== 'not-allowed') {
                     showModal(`Error de dictado: ${event.error === 'no-speech' ? 'No se detectó voz.' : 'Ocurrió un error.'}`);
                 } else {
-                    showModal('Acceso al micrófono denegado. Asegúrate de permitir el micrófono para usar el dictado.');
+                    showModal('Acceso al micrófono denegado.');
                 }
-                setView('home'); // Regresa a Home si falla
+                setView('home');
             };
 
             recognition.onend = () => {
-                // Solo regresamos a home si la vista de escucha está activa
                 if (viewContainer.querySelector('.animate-pulse')) {
                     setView('home');
                 }
@@ -450,33 +589,23 @@
             try {
                 recognition.start();
             } catch (e) {
-                console.error("Error al iniciar el reconocimiento:", e);
-                showModal("Error al iniciar el reconocimiento de voz. Puede que ya esté activo.");
+                showModal("Error al iniciar el reconocimiento de voz.");
                 setView('home');
             }
         }
 
-        /** * PROCESAMIENTO DE VOZ CORREGIDO
-         * Procesa el texto reconocido para extraer nombre y fecha/hora.
-         */
+        /** Procesa el texto reconocido para extraer nombre y fecha/hora. */
         function processVoiceCommand(text) {
             
-            // 1. Normalizar y preparar el texto
-            console.log('Transcript recibido (Original):', text);
-            // Normalizar a minúsculas y quitar acentos (para que "octubre" y "octubre" coincidan)
             const lowerText = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, '');
             
-            // Nueva Regex: Más flexible, ignora el texto intermedio entre el mes y la hora
-            // Grupo 1: Día (1-31)
-            // Grupo 2: Mes (nombre completo en español)
-            // Grupo 3: Hora (1-12)
-            // Grupo 4: Minutos (opcional, ej: :30)
-            // Grupo 5: Marcador de tiempo (am/pm/tarde/mañana)
+            // Regex: Captura día, mes, hora y marcador de tiempo (am/pm/tarde/mañana)
             const dateRegex = /(\d{1,2})\s+(?:de|del)?\s*(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:.*?)\s*(\d{1,2})(:\d{2})?\s+(de la mañana|de la tarde|pm|am)/i;
             
             const match = lowerText.match(dateRegex);
 
             if (!match) {
+                playErrorSound();
                 showModal(`No pude encontrar una fecha y hora clara en: "${text}". Por favor, intenta de nuevo (Ej: "Agendar a Juan Pérez el 10 de octubre a las 3 de la tarde").`);
                 setView('home');
                 return;
@@ -489,20 +618,18 @@
             let name = 'Cliente Dictado';
             if (commandStart !== -1 && nameEnd > commandStart) {
                 let rawName = text.substring(commandStart, nameEnd).trim();
-                // Limpiar la parte del nombre de palabras clave
                 name = rawName.replace(/agendar\s*(a|una cita a|para)\s*/i, '').trim();
                 if (name === '') name = 'Cliente Dictado';
             }
             
             // 3. RECONSTRUIR LOS COMPONENTES NUMÉRICOS DE LA FECHA
             const day = match[1];
-            const rawMonth = match[2]; // ¡Índice corregido!
-            let hour = parseInt(match[3], 10); // ¡Índice corregido!
+            const rawMonth = match[2];
+            let hour = parseInt(match[3], 10);
             const minutes = match[4] ? match[4].substring(1) : '00';
-            const rawMarker = match[5]; // ¡Índice corregido!
+            const rawMarker = match[5];
             const currentYear = new Date().getFullYear();
 
-            // Mapeo de meses a índice numérico (0 para Enero, 11 para Diciembre)
             const monthIndexMap = {
                 'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3,
                 'mayo': 4, 'junio': 5, 'julio': 6, 'agosto': 7,
@@ -515,12 +642,10 @@
             const isAM = rawMarker.includes('mañana') || rawMarker.includes('am');
 
             if (isPM) {
-                // Si la hora es PM y no es 12 PM (mediodía), súmale 12.
                 if (hour < 12) {
                     hour += 12;
                 }
             } else if (isAM) {
-                // Si es 12 AM (medianoche), conviértelo a 00 horas en 24h
                 if (hour === 12) {
                     hour = 0;
                 }
@@ -528,29 +653,21 @@
             
             const yearNum = currentYear;
             const dayNum = parseInt(day, 10);
-            const hourNum = hour; // ya es un entero 0-23
+            const hourNum = hour;
             const minuteNum = parseInt(minutes, 10);
             
-            // CONSTRUCCIÓN DE FECHA MÁS ROBUSTA (AÑO, MES_INDEX, DIA, HORAS, MINUTOS, SEGUNDOS)
             const aptDate = new Date(yearNum, monthIndex, dayNum, hourNum, minuteNum, 0);
 
-            console.log(`Componentes usados: Nombre: ${name}, Año: ${yearNum}, MesIndex (0-11): ${monthIndex}, Día: ${dayNum}, Hora (24h): ${hourNum}, Minutos: ${minuteNum}`); // Log de depuración
-
-            // Verificación de fecha inválida (incluye desbordamiento de días)
             if (isNaN(aptDate.getTime()) || aptDate.getMonth() !== monthIndex || aptDate.getDate() !== dayNum) {
-                showModal(`Error (Fecha Inválida): No pude crear una fecha válida. El día, mes u hora es incorrecto. Intenta con un día válido para el mes.`);
+                playErrorSound();
+                showModal(`Error (Fecha Inválida): No pude crear una fecha válida.`);
                 setView('home');
                 return;
             }
             
-            console.log('Fecha reconstruida (ISO):', aptDate.toISOString());
-
             // 4. AGENDAR CITA
-            const finalMessage = `Dictado Procesado:\nCliente: ${name}\nFecha: ${formatDateTime(aptDate)}\n\n¡Cita agendada!`;
-            
-            // Ejecutamos el agendamiento y mostramos el modal final
+            // addAppointment ahora maneja la verificación de conflicto y la notificación final
             addAppointment(name, aptDate.toISOString());
-            showModal(finalMessage); // Se muestra el modal de éxito.
         }
 
         // =======================================================
@@ -561,13 +678,10 @@
         function getTomorrowDateString() {
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
-            // Formato 'YYYY-MM-DD'
             return tomorrow.toISOString().substring(0, 10);
         }
 
-        /**
-         * Verifica si son las 10:00 PM o más tarde y muestra las citas del día siguiente.
-         */
+        /** Verifica si son las 10:00 PM o más tarde y muestra las citas del día siguiente. */
         function checkAndScheduleDailyReminder() {
             const now = new Date();
             const targetHour = 22; // 10 PM
@@ -575,7 +689,6 @@
             // 1. Verificar si ya pasó la hora de recordatorio (22:00 en este caso).
             if (now.getHours() >= targetHour) {
                 const todayDateString = now.toISOString().substring(0, 10);
-                // La clave de almacenamiento es única por día para resetear cada 24h
                 const reminderShownKey = `reminder_shown_${todayDateString}`;
                 
                 // 2. Verificar si el recordatorio ya fue mostrado hoy (después de las 10 PM)
@@ -586,7 +699,6 @@
 
                 const tomorrowDateString = getTomorrowDateString();
                 const appointmentsTomorrow = appointments.filter(apt => 
-                    // Filtra por la fecha de mañana (YYYY-MM-DD)
                     apt.dateTime.startsWith(tomorrowDateString)
                 );
                 
@@ -607,12 +719,11 @@
                     content = `<p class="text-white text-center py-4">¡Excelente! No hay citas programadas para el día de mañana. Puedes descansar tranquilo/a.</p>`;
                 }
                 
-                showDailyReminderModal(title, content);
+                showDailyReminderModal(title, content); // Incluye alerta sonora
                 
                 // Marcar como mostrado para hoy.
                 localStorage.setItem(reminderShownKey, 'true');
             } 
-            // Si la hora es antes de las 10 PM, simplemente no se muestra.
         }
 
         // =======================================================
