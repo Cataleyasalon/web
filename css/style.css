@@ -1,34 +1,51 @@
-@import"reset.css";
-@import"grid.css";
+@import "reset.css";
+/* NO importamos grid.css, ya que implementaremos nuestro propio sistema de grid responsivo */
 @import url(http://fonts.googleapis.com/css?family=Noto+Sans);
+
+/* =========================================================================
+   CONFIGURACIÓN BASE RESPONSIVA
+   ========================================================================= */
+
 body {
-	font:12px/19px Arial, Helvetica, sans-serif;
-	
-	color:#848383;
-	position:relative;
-	min-width:1036px;
-	background:#000
+	font: 12px/19px Arial, Helvetica, sans-serif;
+	color: #848383;
+	position: relative;
+	/* ELIMINADO: min-width: 1036px; <--- Esto rompe la responsividad */
+	background: #000;
+	box-sizing: border-box; /* Asegura que el padding y el border se incluyan en el ancho/alto */
 }
 html, body {
-	height:100%;
+	height: 100%;
 }
 html {
-	min-width:100%
+	min-width: 100%;
 }
+
 /* Global Structure---------------------------------------- */
 .main {
-	margin:0 auto;
-	width:940px;
-	position:relative;
+	margin: 0 auto;
+	/* CAMBIO: Ancho máximo para escritorio y un 90% de ancho fluido */
+	max-width: 940px; 
+	width: 90%; 
+	position: relative;
 }
 
 .container_12 {
-	position:relative;
+	position: relative;
+	width: 100%; /* El contenedor ocupa el 100% del espacio disponible */
 }
-/*----- txt,links,lines,titles -----*/
-	
+
+/* Regla para hacer todas las imágenes flexibles */
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* ----- txt,links,lines,titles -----*/
+
 .box-1{
-     border-radius:13px;
+     border-radius:13px;
 	-moz-border-radius:13px;
 	-webkit-border-radius:13px;
 	position:relative;
@@ -41,31 +58,32 @@ html {
 	-webkit-border-radius:13px 13px 0 0;	
 	}
 	
- .box-1  figcaption{
+ .box-1  figcaption{
 	background:#cd96c9;
 	position:absolute;
 	display:block;
 	bottom:0;
 	left:0;
 	right:0;
-	font-size:20px;
+	/* Ajuste de fuente para ser responsivo */
+    font-size: clamp(16px, 4vw, 20px);
 	line-height:22px;
 	color:#fff;
-	padding:12px 70px;
+	padding:12px 10px; /* Ajuste de padding */
 	text-align:center;
 	border-radius:0 0 13px 13px;
 	-moz-border-radius:0 0 13px 13px;
 	-webkit-border-radius:0 0 13px 13px;	
 	}
-.box-1  figcaption a{
+.box-1  figcaption a{
 background:url(../images/marker-1.png) no-repeat 0 0;
 width:31px;
 height:31px;
 display:block;
 position:absolute;
 top:8px;
-right:39px}
-.box-1  figcaption a:hover{background-position:0 bottom}	
+right:15px} /* Ajustado para móviles */
+.box-1  figcaption a:hover{background-position:0 bottom}	
 
 h1, h2, h3, h4, h5, h6 {
 	color:#fff;
@@ -178,13 +196,14 @@ z-index:100}
 
 .extra-block,
 .extra-block1 {
- min-height:100%;
- margin: 0 auto -38px;
- position:relative; 
+ min-height:100%;
+ margin: 0 auto -38px;
+ position:relative; 
 }
 
 .extra-block{background:url(../images/tail-bg-cont.png) repeat-x 0 bottom}
-.extra-block1{ margin: 0 auto -5%;}
+/* Se usará un margen más flexible para el footer en el HTML modificado */
+.extra-block1{ margin: 0 auto -5%;} 
 
 
 /**********row-top*************/
@@ -193,14 +212,17 @@ z-index:100}
 padding:28px 0 17px;
 position:relative;
 z-index:10}
-.list-soc{float:right;margin-right:6px}
+.list-soc{
+    float:right;
+    margin-right:6px
+}
 .list-soc li{float:left;margin-left:8px;}
 .list-soc li a{display:block;
-  opacity: 1;
-  filter: alpha(opacity=100);}
+  opacity: 1;
+  filter: alpha(opacity=100);}
 .list-soc li a:hover{
 opacity: 0.7;
-  filter: alpha(opacity=70);}
+  filter: alpha(opacity=70);}
 
 /**********bgstretcher*************/
 
@@ -249,9 +271,10 @@ header {
 }
 header h1 {
 	z-index:10;	
-	display:block;
-	float:left;
-	padding:0}
+	/* CAMBIO: float: none para que podamos centrar el logo en móvil */
+	float: none; 
+	padding:0
+}
 
 
 .row-nav {
@@ -259,14 +282,16 @@ header h1 {
 	padding:6px 0 11px
 }
 
-nav{float:right;padding:12px 0 0 0}
+/* CAMBIO: Quitar float para que la navegación sea más fácil de controlar en móvil */
+nav{float: none;padding:12px 0 0 0; text-align: center;} 
 .menu {
 	font-size:0;
 	line-height:0;
 	padding:0;
 	z-index:99;
 	position:relative;
-	margin-right:21px;
+	margin-right:0; /* Eliminado el margen fijo */
+	text-align: center;
 }
 
 .menu > li {
@@ -278,11 +303,11 @@ nav{float:right;padding:12px 0 0 0}
 	-webkit-border-radius:5px;
 	background:url(../images/point.png)}
 
-.menu li  a{
+.menu li  a{
 	color:#b3adad;
-    font-size:18px;
+    font-size:18px;
 	line-height:20px;
-	display:block;	   
+	display:block;	   
 	position:relative;
 	text-decoration:none !important;	
 	padding:7px 12px 9px;
@@ -311,12 +336,12 @@ section#content {
 .border-vert{background:url(../images/border-vert.png) repeat-y 477px 0}
 
 .img-rounded img{
-	  border-radius:13px;
+	  border-radius:13px;
 	-moz-border-radius:13px;
 	-webkit-border-radius:13px;}
 
 .img-rounded1 img{
-	  border-radius:8px;
+	  border-radius:8px;
 	-moz-border-radius:8px;
 	-webkit-border-radius:8px;}
 
@@ -324,9 +349,13 @@ section#content {
 
 .row-1{background:url(../images/tail-bg-top.png);padding:21px 0 23px}
 
-.main-block{width:1036px;
-margin:0 auto;background:url(../images/tail-cont.png);
-     padding:38px 0;
+.main-block{
+/* CAMBIO: Eliminado el ancho fijo y el margen */
+max-width:1036px;
+width:90%;
+margin:0 auto;
+background:url(../images/tail-cont.png);
+     padding:38px 0;
 	 border-radius:13px;
 	-moz-border-radius:13px;
 	-webkit-border-radius:13px;	
@@ -334,7 +363,7 @@ margin:0 auto;background:url(../images/tail-cont.png);
 }
 
 
-/********************** links  & buttons ************************/
+/********************** links  & buttons ************************/
 .link-1 {
 	display:inline-block;
 	color:#f4bfdf;
@@ -358,13 +387,13 @@ margin:0 auto;background:url(../images/tail-cont.png);
 	text-decoration:none;
 }
 
-/*  Lists */
+/*  Lists */
 
 .list-services{}
 .list-services > li{padding-top:6px}
 .list-services > li:first-child{padding:0;}
 
-/*  Lists */
+/*  Lists */
 .list {
 
 	padding:0 0 27px
@@ -382,45 +411,45 @@ margin:0 auto;background:url(../images/tail-cont.png);
 
 /*----- es-carousel -----*/
 .es-carousel-wrapper {
-  position: relative;
-  z-index: 99;
+  position: relative;
+  z-index: 99;
 }
 .es-carousel {
-  overflow: hidden;
+  overflow: hidden;
 
 }
 .es-carousel ul {
-  display: none;
-  overflow:hidden
+  display: none;
+  overflow:hidden
 }
 .es-carousel ul li {
-  height: 100%;
-  float: left;
-  display: block;
-   width:300px
+  height: 100%;
+  float: left;
+  display: block;
+   width:300px /* Mantener fijo si el carrusel lo requiere, o cambiar a porcentaje */
 }
 .es-carousel ul li figure{margin-bottom:26px}
 
 .es-nav {
-  right: 0;
-  bottom: -30px;
-  position: absolute;
+  right: 0;
+  bottom: -30px;
+  position: absolute;
 }
 .es-nav span {
-  display: block;
-  line-height: 0;
-  font-size: 0;
-  width: 32px;
-  height: 33px;
-  text-indent: -5000px;
-  z-index: 99;
-  cursor: pointer;
-  display:inline-block !important;
-  
+  display: block;
+  line-height: 0;
+  font-size: 0;
+  width: 32px;
+  height: 33px;
+  text-indent: -5000px;
+  z-index: 99;
+  cursor: pointer;
+  display:inline-block !important;
+  
 }
 .es-nav span.es-nav-next {
-  background: url(../images/next.png) no-repeat 50% 50% #a97ca5;
-  	  border-radius:0 6px 6px 0;
+  background: url(../images/next.png) no-repeat 50% 50% #a97ca5;
+  	  border-radius:0 6px 6px 0;
 	-moz-border-radius:0 6px 6px 0;
 	-webkit-border-radius:0 6px 6px 0;
 	border-left:1px solid #cbadc8
@@ -428,12 +457,12 @@ margin:0 auto;background:url(../images/tail-cont.png);
 }
 
 .es-nav span.es-nav-prev {
- background: url(../images/prev.png) no-repeat 50% 50% #a97ca5;
-   	  border-radius:6px 0 0 6px ;
+ background: url(../images/prev.png) no-repeat 50% 50% #a97ca5;
+   	  border-radius:6px 0 0 6px ;
 	-moz-border-radius:6px 0 0 6px ;
 	-webkit-border-radius:6px 0 0 6px ;
 	border-right:1px solid #735470
- 
+ 
 }
 .es-nav span:hover {background-color:#92538d}
 
@@ -446,8 +475,8 @@ margin:0 auto;background:url(../images/tail-cont.png);
 .magnifier img {
 	position:relative;
 	z-index:2;
-  opacity: 1;
-  filter: alpha(opacity=100);
+  opacity: 1;
+  filter: alpha(opacity=100);
 	
 }
 .magnifier span {
@@ -472,7 +501,7 @@ margin:0 auto;background:url(../images/tail-cont.png);
 	height:259px;
 	overflow: hidden;
 	width:100%;
-	     border-radius:20px;
+	     border-radius:20px;
 	-moz-border-radius:20px;
 	-webkit-border-radius:20px;
 }
@@ -502,129 +531,132 @@ dl.address dd span {
 
 /***** contact form *****/
 #contact-form {
-  position: relative;
-  vertical-align: top;
-  z-index: 1;
-  margin: -2px 0 0;
+  position: relative;
+  vertical-align: top;
+  z-index: 1;
+  margin: -2px 0 0;
 }
 #contact-form div {
-  overflow: hidden;
+  overflow: hidden;
 }
 #contact-form fieldset {
-  border: none;
-  padding: 0;
-  width: 100%;
-  overflow: hidden;
-  position: relative;
-  z-index: 10;
+  border: none;
+  padding: 0;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  z-index: 10;
 }
 #contact-form label {
-  display: block;
-  min-height: 45px;
-  position: relative;
-  margin: 0;
-  padding: 0;
-  float: left;
-  width: 100%;
+  display: block;
+  min-height: 45px;
+  position: relative;
+  margin: 0;
+  padding: 0;
+  float: left;
+  width: 100%;
 }
 #contact-form .message {
-  min-height: 313px;
-  display: block !important;
-  width: 100%;
+  min-height: 313px;
+  display: block !important;
+  width: 100%;
 }
 #contact-form input,
 #contact-form textarea {
 	font-family:Arial, Helvetica, sans-serif;
 	font-weight:normal;
-  border: 1px solid #49413d;
-  background: url(../images/tail-input.png);
-  padding: 5px 15px;
-  margin: 0;
-  font-size: 16px;
-  line-height: 20px !important;
-  color: #b0adac;
-  outline: none;
-  width: 220px;
-  -webkit-box-shadow: none;
-  -moz-box-shadow: none;
-  box-shadow: none;
-  float: left;
-  -webkit-border-radius: 0;
-  -moz-border-radius: 0;
-  border-radius: 0;
-  -webkit-box-sizing: border-box;
-  -moz-box-sizing: border-box;
-  box-sizing: border-box;
+  border: 1px solid #49413d;
+  background: url(../images/tail-input.png);
+  padding: 5px 15px;
+  margin: 0;
+  font-size: 16px;
+  line-height: 20px !important;
+  color: #b0adac;
+  outline: none;
+  /* CAMBIO: Ancho del input para móvil */
+  width: 100%;
+  -webkit-box-shadow: none;
+  -moz-box-shadow: none;
+  box-shadow: none;
+  float: left;
+  -webkit-border-radius: 0;
+  -moz-border-radius: 0;
+  border-radius: 0;
+  /* Esencial: box-sizing */
+  -webkit-box-sizing: border-box; 
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
 }
 #contact-form input {
-  height: 30px;
+  height: 30px;
 }
 #contact-form input:focus,
 #contact-form textarea:focus {
-  -webkit-box-shadow: none;
-  -moz-box-shadow: none;
-  box-shadow: none;
+  -webkit-box-shadow: none;
+  -moz-box-shadow: none;
+  box-shadow: none;
 }
 #contact-form .area .error {
-  float: none;
+  float: none;
 }
 #contact-form textarea {
-  width: 100%;
-  height: 273px;
-  resize: none;
-  overflow: auto;
+  width: 100%;
+  height: 273px;
+  resize: none;
+  overflow: auto;
 }
 #contact-form .success {
-  border: 1px solid #49413d;
-  background: #000;
-  display: none;
-  position: absolute;
-  left: 0;
-  font-family:Arial, Helvetica, sans-serif;
-  top: 0;
-  color: #fff;
-  font-size: 18px;
-  line-height: 22px;
-  text-align: center;
-  text-transform: none;
-  width: 100%;
-  z-index: 20;
-  padding: 12px 0;
+  border: 1px solid #49413d;
+  background: #000;
+  display: none;
+  position: absolute;
+  left: 0;
+  font-family:Arial, Helvetica, sans-serif;
+  top: 0;
+  color: #fff;
+  font-size: 18px;
+  line-height: 22px;
+  text-align: center;
+  text-transform: none;
+  width: 100%;
+  z-index: 20;
+  padding: 12px 0;
 }
 #contact-form .success span {
-  display: block;
-  text-align: center;
-  padding: 26px 10px;
+  display: block;
+  text-align: center;
+  padding: 26px 10px;
 }
 #contact-form .success strong {
-  font-weight: normal;
-  display: block;
-  color: #807c79;
+  font-weight: normal;
+  display: block;
+  color: #807c79;
 }
 #contact-form .error,
 #contact-form .empty {
-  color: #f00;
-  font-size: 11px;
-  line-height: 1.27em;
-  display: none;
-  overflow: hidden;
-  padding: 2px 4px 0px 0;  
-  text-transform: none;
-  position: absolute;
-  bottom: 28px;
-  left: 223px;
+  color: #f00;
+  font-size: 11px;
+  line-height: 1.27em;
+  display: none;
+  overflow: hidden;
+  padding: 2px 4px 0px 0;  
+  text-transform: none;
+  position: absolute;
+  bottom: 28px;
+  /* CAMBIO: Posición para que el error no se desborde */
+  left: 5px; 
 }
 #contact-form .message .error,
 #contact-form .message .empty {
-  bottom: 22px;
-  left:0;
+  bottom: 22px;
+  left:0;
 }
 .buttons-wrapper {
-  position: relative;
+  position: relative;
 }
 .buttons-wrapper a {
-  margin-right: 48px;
-  cursor: pointer;
+  margin-right: 48px;
+  cursor: pointer;
 }
 
 
@@ -646,4 +678,107 @@ footer {
 	font-size:12px;
 	color:#fcf9f9;	
 	display:inline-block;
+}
+
+/* =========================================================================
+   SISTEMA DE GRID FLUIDO (Reemplazo de grid.css y las clases grid_X)
+   ========================================================================= */
+
+/* Por defecto (escritorio): 3 columnas */
+.grid_4 {
+    /* 100% / 3 = 33.3333%. Usamos un margen derecho del 3% */
+	width: 31%; 
+	float: left;
+    margin-right: 3.5%;
+    box-sizing: border-box; 
+}
+.grid_4:nth-child(3n) {
+    margin-right: 0; /* Eliminar el margen del último elemento en cada fila */
+}
+
+/* =========================================================================
+   MEDIA QUERIES (ADAPTACIÓN A TAMAÑOS DE PANTALLA)
+   ========================================================================= */
+
+/* Dispositivos de tamaño medio (Tabletas, hasta 768px) */
+@media screen and (max-width: 768px) {
+    
+    /* El logo y la navegación social se centran */
+    header h1 {
+        text-align: center;
+    }
+    .list-soc {
+        float: none;
+        width: 100%;
+        text-align: center;
+        margin: 10px 0 0;
+    }
+    .list-soc li {
+        float: none;
+        display: inline-block;
+    }
+
+    /* Columnas (grid_4) pasan a 2 columnas */
+    .grid_4 {
+        width: 48.5%;
+        margin-right: 3%;
+        margin-bottom: 20px;
+    }
+    /* Aseguramos que el último elemento de la fila de 2 no tenga margen derecho */
+    .grid_4:nth-child(2n) {
+        margin-right: 0; 
+    }
+    /* Aseguramos que el primer elemento de la fila de 2 sí tenga margen derecho */
+    .grid_4:nth-child(2n+1) {
+        margin-right: 3%; 
+    }
+    /* El tercer elemento (que antes era el último) necesita su margen restaurado */
+    .grid_4:nth-child(3n) {
+        margin-right: 3%; 
+    }
+
+    /* El menú se puede mantener horizontal, pero con menos espaciado */
+    .menu > li {
+        margin-left: 5px;
+    }
+}
+
+/* Dispositivos pequeños (Móviles, hasta 480px) */
+@media screen and (max-width: 480px) {
+    
+    /* Columnas (grid_4) pasan a 1 columna (apiladas) */
+    .grid_4 {
+        width: 100%;
+        float: none;
+        margin-right: 0;
+        margin-bottom: 30px;
+    }
+
+    /* El menú se apila verticalmente */
+    .menu > li {
+        float: none;
+        display: block; 
+        width: 90%;
+        margin: 5px auto;
+    }
+
+    /* Ocultamos la paginación del slider para ahorrar espacio */
+    .nav-buttons {
+        display: none;
+    }
+
+    /* Footer: todo centrado */
+    footer .main {
+        text-align: center;
+    }
+    
+    .privacy {
+        text-align: center;
+    }
+
+    /* Ajuste de fuentes y padding en encabezados */
+    h3 {
+        font-size: 24px;
+        padding-bottom: 20px;
+    }
 }
