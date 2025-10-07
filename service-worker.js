@@ -3,13 +3,13 @@
 const CACHE_NAME = 'cataleya-cache-v2'; // Cambiado a v2 para forzar la actualización
 const urlsToCache = [
     // La raíz de tu aplicación web (el scope)
-    '/', 
+    '/web/', 
     // Archivos principales: usa rutas relativas
-    'index5.html', 
-    'manifest.json',
-    'icono192.png',
-    'icono512.png',
-    'cabecera.png' // Archivo de logo
+    '/web/index5.html', 
+    '/web/manifest.json',
+    '/web/icono192.png',
+    '/web/icono512.png',
+    '/web/cabecera.png' // Archivo de logo
 ];
 
 // Evento: Instalación (Guardar archivos en el caché)
