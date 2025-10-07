@@ -1,6 +1,6 @@
 const CACHE_NAME = 'cataleya-cache-v1';
 const urlsToCache = [
-    '/',
+    'https://cataleyasalon.github.io/web/',
     'https://cataleyasalon.github.io/web/index5.html',
     'https://cataleyasalon.github.io/web/manifest.json',
     'https://cataleyasalon.github.io/web/icono192x192.png',
