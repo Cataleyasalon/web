@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cataleya - Sistema de Citas</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Configuración de Tailwind para usar 'Inter' y activar modo oscuro -->
     <script>
         tailwind.config = {
             theme: {
@@ -63,32 +62,16 @@
 </head>
 <body>
 
-    <!-- Contenedor principal responsive: ocupa todo el ancho en móvil, limitado en escritorio -->
     <div id="app" class="card p-6 sm:p-8 lg:p-10 w-full max-w-lg mx-4 rounded-xl transition-all duration-300">
 
-        <!-- ESPACIO PARA EL LOGO (Reemplaza el texto de la app) -->
         <div id="logo-image-container" class="text-center mb-6">
-            
-               <!-- Aquí puedes insertar tu etiqueta <img> con la URL de tu logo.
-                Ejemplo (Descomenta para probar con un placeholder):-->
             <img src="https://cataleyasalon.github.io/web/logo.png" 
                 alt="Logo de la Aplicación"> 
-                <!--class="mx-auto rounded-lg border-0 border-accent p-2">
-            
-            <!--<div class="h-16 w-32 mx-auto rounded-lg border-2 border-accent flex items-center justify-center text-accent font-bold">
-                LOGO
-            </div> -->
         </div>
         
-        <!-- Descripción de la app (mantenida) -->
-        <!--<p class="text-center text-gray-400 mb-8 text-sm sm:text-base">Sistema de Gestión de Citas</p> -->
-
-        <!-- Contenedor Principal (Cambia de vista con JS) -->
         <div id="view-container">
-            <!-- El contenido de la vista se renderiza aquí -->
-        </div>
+            </div>
 
-        <!-- Modal para Mensajes (Reemplazo de alert()) -->
         <div id="message-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
             <div class="bg-secondary-dark p-6 rounded-lg max-w-sm w-full text-center border border-accent">
                 <p id="modal-text" class="text-white text-lg mb-4"></p>
@@ -98,7 +81,6 @@
             </div>
         </div>
 
-        <!-- Modal para Recordatorio Diario (10:00 PM) - Minimalista, Sombreado y Morado -->
         <div id="reminder-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-40">
             <div class="bg-secondary-dark p-6 rounded-xl max-w-sm w-full text-left border border-accent shadow-2xl shadow-violet-700/50 transform transition-all duration-300 scale-100">
                 <div class="flex justify-between items-center mb-4">
@@ -108,8 +90,7 @@
                     </button>
                 </div>
                 <div id="reminder-content" class="text-gray-300 space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                    <!-- Contenido de las citas del día siguiente -->
-                </div>
+                    </div>
                 <button onclick="closeReminderModal()" class="mt-4 w-full bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-lg transition duration-200">
                     Cerrar Recordatorio
                 </button>
@@ -286,6 +267,7 @@
         /** Renderiza la vista de Calendario */
         function renderCalendar() {
             const hasAppointments = appointments.length > 0;
+
             const content = hasAppointments 
                 ? appointments.map(apt => `
                     <div class="appointment-item p-4 mb-2 bg-secondary-dark rounded-lg flex justify-between items-center transition duration-150 border border-gray-700">
@@ -382,7 +364,10 @@
 
             appointments.push(newAppointment);
             saveAppointments(appointments);
-            showModal(`¡Cita agendada! ${name} el ${formatDateTime(newAppointment.dateTime)}.`);
+            // La notificación de éxito se movió a processVoiceCommand para mayor inmediatez,
+            // pero si llamas a esta función directamente, se mostraría aquí:
+            // showModal(`¡Cita agendada! ${name} el ${formatDateTime(newAppointment.dateTime)}.`);
+            
             // Regresar a la vista principal
             setView('home');
         }
@@ -458,7 +443,7 @@
             recognition.onend = () => {
                 // Solo regresamos a home si la vista de escucha está activa
                 if (viewContainer.querySelector('.animate-pulse')) {
-                   setView('home');
+                    setView('home');
                 }
             };
 
@@ -471,18 +456,23 @@
             }
         }
 
-        /** Procesa el texto reconocido para extraer nombre y fecha/hora.
-         * Se usa el constructor new Date(año, mesIndex, día, hora, minutos) para máxima fiabilidad.
+        /** * PROCESAMIENTO DE VOZ CORREGIDO
+         * Procesa el texto reconocido para extraer nombre y fecha/hora.
          */
         function processVoiceCommand(text) {
             
             // 1. Normalizar y preparar el texto
             console.log('Transcript recibido (Original):', text);
             // Normalizar a minúsculas y quitar acentos (para que "octubre" y "octubre" coincidan)
-            const lowerText = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ''); 
+            const lowerText = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, '');
             
-            // Regex: Captura día, mes, hora y marcador de tiempo (am/pm/tarde/mañana)
-            const dateRegex = /(\d{1,2})\s+(de|del)?\s*(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+.*?(\d{1,2})(:\d{2})?\s+(de la manana|de la tarde|pm|am)/i;
+            // Nueva Regex: Más flexible, ignora el texto intermedio entre el mes y la hora
+            // Grupo 1: Día (1-31)
+            // Grupo 2: Mes (nombre completo en español)
+            // Grupo 3: Hora (1-12)
+            // Grupo 4: Minutos (opcional, ej: :30)
+            // Grupo 5: Marcador de tiempo (am/pm/tarde/mañana)
+            const dateRegex = /(\d{1,2})\s+(?:de|del)?\s*(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:.*?)\s*(\d{1,2})(:\d{2})?\s+(de la mañana|de la tarde|pm|am)/i;
             
             const match = lowerText.match(dateRegex);
 
@@ -493,20 +483,23 @@
             }
             
             // 2. EXTRAER EL NOMBRE
-            const rawNamePart = text.substring(0, match.index).trim();
-            // Limpiar la parte del nombre de palabras clave
-            let name = rawNamePart.replace(/agendar\s*(a|una cita a|para)\s*/i, '').trim();
+            const commandStart = lowerText.indexOf('agendar');
+            const nameEnd = match.index;
 
-            if (name === '') {
-                name = 'Cliente Dictado';
+            let name = 'Cliente Dictado';
+            if (commandStart !== -1 && nameEnd > commandStart) {
+                let rawName = text.substring(commandStart, nameEnd).trim();
+                // Limpiar la parte del nombre de palabras clave
+                name = rawName.replace(/agendar\s*(a|una cita a|para)\s*/i, '').trim();
+                if (name === '') name = 'Cliente Dictado';
             }
-
+            
             // 3. RECONSTRUIR LOS COMPONENTES NUMÉRICOS DE LA FECHA
             const day = match[1];
-            const rawMonth = match[3];
-            let hour = parseInt(match[4], 10);
-            const minutes = match[5] ? match[5].substring(1) : '00';
-            const rawMarker = match[6];
+            const rawMonth = match[2]; // ¡Índice corregido!
+            let hour = parseInt(match[3], 10); // ¡Índice corregido!
+            const minutes = match[4] ? match[4].substring(1) : '00';
+            const rawMarker = match[5]; // ¡Índice corregido!
             const currentYear = new Date().getFullYear();
 
             // Mapeo de meses a índice numérico (0 para Enero, 11 para Diciembre)
@@ -517,26 +510,22 @@
             };
             const monthIndex = monthIndexMap[rawMonth];
             
-            if (monthIndex === undefined) {
-                showModal(`Error de mes: "${rawMonth}" no se reconoce como un mes válido.`);
-                setView('home');
-                return;
-            }
-
             // Conversión de hora a formato 24h
-            if (rawMarker.includes('tarde') || rawMarker.includes('pm')) {
+            const isPM = rawMarker.includes('tarde') || rawMarker.includes('pm');
+            const isAM = rawMarker.includes('mañana') || rawMarker.includes('am');
+
+            if (isPM) {
                 // Si la hora es PM y no es 12 PM (mediodía), súmale 12.
                 if (hour < 12) {
                     hour += 12;
                 }
-            } else { // mañana o am
+            } else if (isAM) {
                 // Si es 12 AM (medianoche), conviértelo a 00 horas en 24h
                 if (hour === 12) {
                     hour = 0;
                 }
             }
-
-            // Convertir strings/numbers a números para el constructor
+            
             const yearNum = currentYear;
             const dayNum = parseInt(day, 10);
             const hourNum = hour; // ya es un entero 0-23
@@ -545,11 +534,11 @@
             // CONSTRUCCIÓN DE FECHA MÁS ROBUSTA (AÑO, MES_INDEX, DIA, HORAS, MINUTOS, SEGUNDOS)
             const aptDate = new Date(yearNum, monthIndex, dayNum, hourNum, minuteNum, 0);
 
-            console.log(`Componentes usados: Año: ${yearNum}, MesIndex (0-11): ${monthIndex}, Día: ${dayNum}, Hora (24h): ${hourNum}, Minutos: ${minuteNum}`); // Log de depuración
+            console.log(`Componentes usados: Nombre: ${name}, Año: ${yearNum}, MesIndex (0-11): ${monthIndex}, Día: ${dayNum}, Hora (24h): ${hourNum}, Minutos: ${minuteNum}`); // Log de depuración
 
-            if (isNaN(aptDate.getTime())) {
-                // Mensaje de error mejorado para indicar los componentes numéricos fallidos
-                showModal(`Error (Fecha Inválida): No pude crear una fecha válida. Componentes: MesIndex=${monthIndex}, Día=${dayNum}, Hora=${hourNum}:${minuteNum} del ${yearNum}. Revisa que el día sea válido para el mes.`);
+            // Verificación de fecha inválida (incluye desbordamiento de días)
+            if (isNaN(aptDate.getTime()) || aptDate.getMonth() !== monthIndex || aptDate.getDate() !== dayNum) {
+                showModal(`Error (Fecha Inválida): No pude crear una fecha válida. El día, mes u hora es incorrecto. Intenta con un día válido para el mes.`);
                 setView('home');
                 return;
             }
@@ -557,14 +546,11 @@
             console.log('Fecha reconstruida (ISO):', aptDate.toISOString());
 
             // 4. AGENDAR CITA
-            const finalMessage = `Dictado Procesado:\nCliente: ${name}\nFecha: ${formatDateTime(aptDate)}\n\n(Se agendará automáticamente, revisa el calendario.)`;
+            const finalMessage = `Dictado Procesado:\nCliente: ${name}\nFecha: ${formatDateTime(aptDate)}\n\n¡Cita agendada!`;
             
-            showModal(finalMessage);
-
-            // Ejecuta el agendamiento después de una breve pausa
-            setTimeout(() => {
-                addAppointment(name, aptDate.toISOString());
-            }, 1500);
+            // Ejecutamos el agendamiento y mostramos el modal final
+            addAppointment(name, aptDate.toISOString());
+            showModal(finalMessage); // Se muestra el modal de éxito.
         }
 
         // =======================================================
