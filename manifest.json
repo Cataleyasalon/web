@@ -1,26 +1,24 @@
-// manifest.json
-
+// manifest.json - CÓDIGO FINAL CORREGIDO
 {
     "name": "Cataleya Citas",
     "short_name": "Cataleya",
     "description": "Sistema de gestión de citas con dictado de voz.",
-    // start_url debe ser relativo a la raíz
     "start_url": "/web/index5.html", 
     "display": "standalone",
     "background_color": "#0d1117",
     "theme_color": "#a78bfa",
     "icons": [
         {
-            // Ruta del icono relativa o absoluta si es necesario, pero solo en 'src'
-            "src": "web/icono192.png", 
+            // Ruta corregida: Si el manifiesto y el icono están en /web/, solo se necesita el nombre del archivo.
+            "src": "icono192.png", 
             "sizes": "192x192", 
             "type": "image/png"
         },
         {
-            // Asegúrate de que esta ruta sea correcta
-            "src": "web/icono512.png", 
+            // Ruta corregida: Solo el nombre del archivo.
+            "src": "icono512.png", 
             "sizes": "512x512",
-            "type": "image/png" 
+            "type": "image/png"
         }
     ]
 }
