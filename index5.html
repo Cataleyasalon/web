@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cataleya - Sistema de Citas (v2.0)</title>
+    <title>Cataleya - Sistema de Citas (v2.1)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -94,7 +94,7 @@
     <div id="app" class="card p-6 sm:p-8 lg:p-10 w-full max-w-lg mx-4 rounded-xl transition-all duration-300">
 
         <div id="logo-image-container" class="text-center mb-6">
-            <img src="https://cataleyasalon.github.io/web/logo.png" 
+            <img src="https://cataleyasalon.github.io/web/cabecera.png" 
                 alt="Logo de la Aplicación"> 
         </div>
         
@@ -103,6 +103,7 @@
 
         <div id="message-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
             <div class="bg-secondary-dark p-6 rounded-lg max-w-sm w-full text-center border border-accent">
+                <div id="modal-icon-container" class="text-3xl mb-3 text-red-500"></div>
                 <p id="modal-text" class="text-white text-lg mb-4"></p>
                 <button onclick="closeModal()" class="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-lg transition duration-200 shadow-md shadow-violet-700/50">
                     Entendido
@@ -121,7 +122,7 @@
                 <div id="reminder-content" class="text-gray-300 space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-2">
                     </div>
                 <button onclick="closeReminderModal()" class="mt-4 w-full bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-lg transition duration-200">
-                    Cerrar Recordatorio
+                    Cerrar
                 </button>
             </div>
         </div>
@@ -135,20 +136,27 @@
         const STORAGE_KEY = 'cataleya_appointments_data';
         let currentView = 'home';
         let appointments = [];
-        let recognition = null; // Para la API de voz
-        let currentCalendarDate = new Date(); // Para el calendario mensual
+        let recognition = null; 
+        let currentCalendarDate = new Date(); 
 
         const viewContainer = document.getElementById('view-container');
         const messageModal = document.getElementById('message-modal');
         const modalText = document.getElementById('modal-text');
+        const modalIconContainer = document.getElementById('modal-icon-container');
 
         // =======================================================
         // UTILERÍAS GLOBALES
         // =======================================================
 
-        /** Muestra un modal personalizado en lugar de 'alert()' */
-        function showModal(message) {
-            playNotificationSound(); // Alerta sonora para cualquier pop-up
+        /** Muestra un modal personalizado con o sin icono de error. */
+        function showModal(message, isError = false) {
+            if (isError) {
+                playErrorSound();
+                modalIconContainer.innerHTML = '<i class="fas fa-ban"></i>'; // Icono de Prohibido
+            } else {
+                playNotificationSound(); 
+                modalIconContainer.innerHTML = ''; // Sin icono para éxito/información
+            }
             modalText.textContent = message;
             messageModal.classList.remove('hidden');
         }
@@ -178,18 +186,20 @@
                 gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
                 oscillator.stop(audioCtx.currentTime + duration);
             } catch (e) {
-                console.warn('Fallo al reproducir sonido (posiblemente por restricciones de navegador):', e);
+                console.warn('Fallo al reproducir sonido:', e);
             }
         }
         
         /** Reproduce un sonido de error (más áspero) */
         function playErrorSound() {
-            playNotificationSound(200, 0.4); // Frecuencia baja, más larga
+            // Sonido de doble 'beep'
+            playNotificationSound(300, 0.1); 
+            setTimeout(() => playNotificationSound(250, 0.15), 150);
         }
 
-        /** Muestra el modal de recordatorio diario. */
+        /** Muestra el modal de recordatorio diario o detalles del día. */
         function showDailyReminderModal(title, htmlContent) {
-            playNotificationSound(880, 0.5); // Sonido más agudo para recordatorio importante
+            playNotificationSound(880, 0.5); 
             document.getElementById('reminder-title').textContent = title;
             document.getElementById('reminder-content').innerHTML = htmlContent;
             document.getElementById('reminder-modal').classList.remove('hidden');
@@ -234,7 +244,7 @@
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
             } catch (error) {
                 console.error('Error al guardar en localStorage:', error);
-                showModal('Error al guardar datos. El almacenamiento podría estar lleno o desactivado.');
+                showModal('Error al guardar datos. El almacenamiento podría estar lleno o desactivado.', true);
             }
         }
 
@@ -258,7 +268,7 @@
                 }
             } catch (error) {
                 console.error('Error al cargar o analizar localStorage:', error);
-                showModal('Error al cargar datos. Los datos de citas podrían estar corruptos.');
+                showModal('Error al cargar datos. Los datos de citas podrían estar corruptos.', true);
                 return [];
             }
         }
@@ -307,21 +317,27 @@
             const dateDisplay = new Date(dateString).toLocaleDateString('es-ES', {
                 weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
             });
+            
+            // Icono de Cita Agendada: calendar-check
+            const appointmentIcon = '<i class="fas fa-calendar-check text-accent mr-2"></i>';
 
             let content;
             if (dayAppointments.length > 0) {
                 content = dayAppointments.map(apt => `
-                    <div class="border-l-4 border-accent pl-3 py-2 bg-gray-800 rounded-lg">
-                        <p class="font-semibold text-white text-base">${apt.name}</p>
-                        <p class="text-sm text-gray-400">Hora: ${formatDateTime(apt.dateTime).split(' a las ')[1]}</p>
+                    <div class="border-l-4 border-accent pl-3 py-2 bg-gray-800 rounded-lg flex items-center">
+                        <span class="text-sm text-gray-400 mr-2">${appointmentIcon}</span>
+                        <div>
+                            <p class="font-semibold text-white text-base">${apt.name}</p>
+                            <p class="text-sm text-gray-400">Hora: ${formatDateTime(apt.dateTime).split(' a las ')[1]}</p>
+                        </div>
                     </div>
                 `).join('<div class="h-3"></div>');
             } else {
                 content = `<p class="text-gray-500 text-center py-4">No hay citas para este día.</p>`;
             }
 
-            // Usamos el modal de recordatorio para mostrar los detalles del día
-            showDailyReminderModal(`Citas del ${dateDisplay.charAt(0).toUpperCase() + dateDisplay.slice(1)}`, content);
+            // Título modificado a "Citas Agendadas"
+            showDailyReminderModal(`Citas Agendadas del ${dateDisplay.charAt(0).toUpperCase() + dateDisplay.slice(1)}`, content);
         }
 
 
@@ -329,12 +345,9 @@
         function renderCalendar() {
             const date = currentCalendarDate;
             const year = date.getFullYear();
-            const month = date.getMonth(); // 0-indexed
-
+            const month = date.getMonth(); 
             const firstDayOfMonth = new Date(year, month, 1);
-            // El día de la semana para el primer día del mes (0=Dom, 6=Sáb)
             let startingDay = firstDayOfMonth.getDay(); 
-            // Ajuste para empezar la semana en Lunes (0=Dom -> 6, 1=Lun -> 0, etc.)
             startingDay = startingDay === 0 ? 6 : startingDay - 1; 
 
             const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -352,14 +365,14 @@
             }
 
             // Días del mes
-            const occupiedDates = appointments.map(apt => formatDateOnly(apt.dateTime).substring(8, 10)); // Solo el día 'DD'
+            const occupiedDates = new Set(appointments.map(apt => formatDateOnly(apt.dateTime).substring(8, 10)));
             const todayDateOnly = formatDateOnly(new Date()).substring(8, 10);
             const currentMonthYear = `${year}-${String(month + 1).padStart(2, '0')}`;
 
             for (let day = 1; day <= daysInMonth; day++) {
                 const dayStr = String(day).padStart(2, '0');
                 const fullDateString = `${currentMonthYear}-${dayStr}`;
-                const isOccupied = occupiedDates.includes(dayStr);
+                const isOccupied = occupiedDates.has(dayStr);
                 const isToday = dayStr === todayDateOnly && new Date().getMonth() === month && new Date().getFullYear() === year;
                 
                 let classes = isToday ? 'bg-accent/30 border border-accent text-white' : 'bg-secondary-dark text-gray-300';
@@ -412,6 +425,7 @@
 
         /** Renderiza la vista de Cancelar Cita */
         function renderCancel() {
+            // ... (El código de renderCancel se mantiene igual)
             const hasAppointments = appointments.length > 0;
             const content = hasAppointments 
                 ? appointments.map(apt => `
@@ -444,9 +458,9 @@
 
         /** Función principal de renderizado */
         function renderView() {
-            appointments = loadAppointments(); // Recarga citas al cambiar de vista
+            appointments = loadAppointments(); 
             if (recognition) {
-                recognition.stop(); // Asegura que el dictado se detenga al cambiar de vista
+                recognition.stop(); 
             }
             switch (currentView) {
                 case 'calendar':
@@ -470,18 +484,8 @@
         function isTimeSlotOccupied(dateString) {
             const newTime = new Date(dateString).getTime();
             
-            // Convertir la hora de la nueva cita a minutos desde medianoche para comparación
-            const newDate = new Date(dateString);
-            const newDateOnly = formatDateOnly(newDate);
-
-            // Filtra solo las citas del mismo día
-            const appointmentsOnSameDay = appointments.filter(apt => {
-                const aptDateOnly = formatDateOnly(new Date(apt.dateTime));
-                return aptDateOnly === newDateOnly;
-            });
-            
             // Verifica si la nueva hora coincide exactamente con alguna existente (precisión al minuto)
-            const isConflict = appointmentsOnSameDay.some(apt => {
+            const isConflict = appointments.some(apt => {
                 return new Date(apt.dateTime).getTime() === newTime;
             });
 
@@ -490,9 +494,14 @@
 
         /** Agrega una nueva cita. */
         function addAppointment(name, dateString) {
+            if (new Date(dateString) < Date.now()) {
+                showModal('¡Error! No puedes agendar una cita en el pasado.', true);
+                return;
+            }
+
             if (isTimeSlotOccupied(dateString)) {
-                playErrorSound(); // Alerta sonora de conflicto
-                showModal(`¡ALERTA! La hora y fecha: ${formatDateTime(dateString)} ya están reservadas. Por favor, elige otro horario.`);
+                // Alerta sonora y pop-up con icono de prohibido
+                showModal(`¡ALERTA! La hora y fecha: ${formatDateTime(dateString)} ya están reservadas. Por favor, elige otro horario.`, true);
                 return;
             }
 
@@ -502,17 +511,13 @@
                 dateTime: new Date(dateString).toISOString()
             };
 
-            if (new Date(newAppointment.dateTime) < Date.now()) {
-                playErrorSound();
-                showModal('¡Error! No puedes agendar una cita en el pasado.');
-                return;
-            }
-
             appointments.push(newAppointment);
             saveAppointments(appointments);
+            
+            // Mensaje de éxito (no es error, por lo que isError=false)
             showModal(`¡Cita agendada con éxito! ${name} el ${formatDateTime(newAppointment.dateTime)}.`);
             
-            setView('home'); // Regresar a la vista principal
+            setView('home'); 
         }
 
         /** Confirma y ejecuta la cancelación de una cita. */
@@ -521,7 +526,7 @@
             const aptToCancel = appointments.find(apt => apt.id === id);
 
             if (!aptToCancel) {
-                 showModal('Error: Cita no encontrada.');
+                 showModal('Error: Cita no encontrada.', true);
                  renderCancel();
                  return;
             }
@@ -532,7 +537,7 @@
                 appointments = appointments.filter(apt => apt.id !== id);
                 saveAppointments(appointments);
                 showModal(`La cita de ${aptToCancel.name} ha sido cancelada.`);
-                renderCancel(); // Re-renderiza la lista de cancelación
+                renderCancel(); 
             }
         }
 
@@ -541,8 +546,9 @@
         // =======================================================
 
         function startSpeechRecognition() {
+            // ... (El código de startSpeechRecognition se mantiene igual)
             if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                showModal('Tu navegador no soporta la función de dictado. Por favor, usa un botón de agenda manual.');
+                showModal('Tu navegador no soporta la función de dictado.', true);
                 return;
             }
 
@@ -573,9 +579,9 @@
             recognition.onerror = (event) => {
                 recognition.stop();
                 if (event.error !== 'not-allowed') {
-                    showModal(`Error de dictado: ${event.error === 'no-speech' ? 'No se detectó voz.' : 'Ocurrió un error.'}`);
+                    showModal(`Error de dictado: ${event.error === 'no-speech' ? 'No se detectó voz.' : 'Ocurrió un error.'}`, true);
                 } else {
-                    showModal('Acceso al micrófono denegado.');
+                    showModal('Acceso al micrófono denegado.', true);
                 }
                 setView('home');
             };
@@ -589,29 +595,26 @@
             try {
                 recognition.start();
             } catch (e) {
-                showModal("Error al iniciar el reconocimiento de voz.");
+                showModal("Error al iniciar el reconocimiento de voz.", true);
                 setView('home');
             }
         }
 
         /** Procesa el texto reconocido para extraer nombre y fecha/hora. */
         function processVoiceCommand(text) {
-            
+            // ... (El código de processVoiceCommand se mantiene igual)
             const lowerText = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, '');
             
-            // Regex: Captura día, mes, hora y marcador de tiempo (am/pm/tarde/mañana)
             const dateRegex = /(\d{1,2})\s+(?:de|del)?\s*(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:.*?)\s*(\d{1,2})(:\d{2})?\s+(de la mañana|de la tarde|pm|am)/i;
             
             const match = lowerText.match(dateRegex);
 
             if (!match) {
-                playErrorSound();
-                showModal(`No pude encontrar una fecha y hora clara en: "${text}". Por favor, intenta de nuevo (Ej: "Agendar a Juan Pérez el 10 de octubre a las 3 de la tarde").`);
+                showModal(`No pude encontrar una fecha y hora clara en: "${text}". Por favor, intenta de nuevo (Ej: "Agendar a Juan Pérez el 10 de octubre a las 3 de la tarde").`, true);
                 setView('home');
                 return;
             }
             
-            // 2. EXTRAER EL NOMBRE
             const commandStart = lowerText.indexOf('agendar');
             const nameEnd = match.index;
 
@@ -622,7 +625,6 @@
                 if (name === '') name = 'Cliente Dictado';
             }
             
-            // 3. RECONSTRUIR LOS COMPONENTES NUMÉRICOS DE LA FECHA
             const day = match[1];
             const rawMonth = match[2];
             let hour = parseInt(match[3], 10);
@@ -637,7 +639,6 @@
             };
             const monthIndex = monthIndexMap[rawMonth];
             
-            // Conversión de hora a formato 24h
             const isPM = rawMarker.includes('tarde') || rawMarker.includes('pm');
             const isAM = rawMarker.includes('mañana') || rawMarker.includes('am');
 
@@ -659,14 +660,11 @@
             const aptDate = new Date(yearNum, monthIndex, dayNum, hourNum, minuteNum, 0);
 
             if (isNaN(aptDate.getTime()) || aptDate.getMonth() !== monthIndex || aptDate.getDate() !== dayNum) {
-                playErrorSound();
-                showModal(`Error (Fecha Inválida): No pude crear una fecha válida.`);
+                showModal(`Error (Fecha Inválida): No pude crear una fecha válida.`, true);
                 setView('home');
                 return;
             }
             
-            // 4. AGENDAR CITA
-            // addAppointment ahora maneja la verificación de conflicto y la notificación final
             addAppointment(name, aptDate.toISOString());
         }
 
@@ -686,12 +684,10 @@
             const now = new Date();
             const targetHour = 22; // 10 PM
             
-            // 1. Verificar si ya pasó la hora de recordatorio (22:00 en este caso).
             if (now.getHours() >= targetHour) {
                 const todayDateString = now.toISOString().substring(0, 10);
                 const reminderShownKey = `reminder_shown_${todayDateString}`;
                 
-                // 2. Verificar si el recordatorio ya fue mostrado hoy (después de las 10 PM)
                 if (localStorage.getItem(reminderShownKey) === 'true') {
                     console.log('Recordatorio de mañana ya mostrado hoy.');
                     return; 
@@ -704,13 +700,17 @@
                 
                 let title = '';
                 let content = '';
+                const appointmentIcon = '<i class="fas fa-calendar-check text-accent mr-2"></i>'; // Icono
 
                 if (appointmentsTomorrow.length > 0) {
                     title = `🔔 Citas para Mañana (${tomorrowDateString.split('-').reverse().join('/')})`;
                     content = appointmentsTomorrow.map(apt => `
-                        <div class="border-l-4 border-accent pl-3 py-2 bg-gray-800 rounded-lg">
-                            <p class="font-semibold text-white text-base">${apt.name}</p>
-                            <p class="text-sm text-gray-400">Hora: ${formatDateTime(apt.dateTime).split(' a las ')[1]}</p>
+                        <div class="border-l-4 border-accent pl-3 py-2 bg-gray-800 rounded-lg flex items-center">
+                            <span class="text-sm text-gray-400 mr-2">${appointmentIcon}</span>
+                            <div>
+                                <p class="font-semibold text-white text-base">${apt.name}</p>
+                                <p class="text-sm text-gray-400">Hora: ${formatDateTime(apt.dateTime).split(' a las ')[1]}</p>
+                            </div>
                         </div>
                     `).join('<div class="h-3"></div>');
                     
@@ -719,9 +719,8 @@
                     content = `<p class="text-white text-center py-4">¡Excelente! No hay citas programadas para el día de mañana. Puedes descansar tranquilo/a.</p>`;
                 }
                 
-                showDailyReminderModal(title, content); // Incluye alerta sonora
+                showDailyReminderModal(title, content); 
                 
-                // Marcar como mostrado para hoy.
                 localStorage.setItem(reminderShownKey, 'true');
             } 
         }
@@ -730,11 +729,9 @@
         // INICIO DE LA APLICACIÓN
         // =======================================================
         
-        // Inicializa la aplicación cargando las citas y renderizando la vista Home
         window.onload = () => {
             appointments = loadAppointments();
             renderView();
-            // Verifica y muestra el recordatorio si es después de las 10 PM
             checkAndScheduleDailyReminder(); 
         };
 
