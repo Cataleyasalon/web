@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Citas - Menú de 3 Opciones Original</title>
+    <title>Sistema de Citas - Código Original (Vulnerable)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -170,7 +170,7 @@
         }
 
         // =======================================================
-        // GESTIÓN DE LOCALSTORAGE (Versión Original/Simple)
+        // GESTIÓN DE LOCALSTORAGE - ORIGINAL (SIN FILTRO/LIMPIEZA)
         // =======================================================
 
         function saveAppointments(apts) {
@@ -207,7 +207,7 @@
         }
 
         // =======================================================
-        // LÓGICA DE CITAS (Original/Simple)
+        // LÓGICA DE CITAS - ORIGINAL (VULNERABLE A UTC)
         // =======================================================
 
         function addAppointment(dateStr, timeStr) {
@@ -217,12 +217,12 @@
             const minute = parseInt(minuteStr, 10);
             
             const dateTimeStr = `${dateStr}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
-            const newAppointmentDate = new Date(dateTimeStr);
+            const newAppointmentDate = new Date(dateTimeStr); // <--- Fuente del problema de UTC
             const now = new Date();
             
             if (newAppointmentDate <= now) {
                 showModal('Error al Agendar', 'No se puede agendar una cita en el pasado o a una hora ya transcurrida.', true);
-                return;
+                return false;
             }
 
             const isAvailable = appointments.every(apt => {
@@ -233,7 +233,7 @@
 
             if (!isAvailable) {
                 showModal('Error al Agendar', 'Ya existe una cita muy cercana a esta hora. Intervalo mínimo de 30 minutos.', true);
-                return;
+                return false;
             }
 
             const newAppointment = {
@@ -246,7 +246,7 @@
             
             showModal('Cita Agendada', `Tu cita ha sido agendada para el ${formatDateTimeDisplay(newAppointment.dateTime)}.`, false);
             
-            setView('calendar'); 
+            return true;
         }
 
         function cancelAppointment(id) {
@@ -264,22 +264,22 @@
         }
 
         // =======================================================
-        // FUNCIONES DE MENÚ PRINCIPAL (RESTAURADAS)
+        // FUNCIONES DE MENÚ PRINCIPAL (MARCADOR DE VOZ)
         // =======================================================
 
         function scheduleWithVoice() {
-            // Lógica de dictado: solo muestra un mensaje, ya que el código de voz es avanzado.
+            // Muestra el mensaje de que requiere implementación.
             showModal('Agendar con Dictado 🎤', 'Esta función requiere implementar la API de Reconocimiento de Voz. Se continuará en el modo de formulario manual.', false);
-            setView('calendar'); // Redirige al calendario para agendar manualmente.
+            setView('calendar'); 
         }
 
         function viewAppointments() {
-             // Redirige directamente al calendario, ya que la vista de "Ver Citas" se realiza allí.
+             // Redirige directamente al calendario.
             setView('calendar');
         }
 
         function deleteAppointments() {
-            // Lógica simple para mostrar el botón de borrado de todas las citas.
+            // Lógica para borrar todas las citas.
             showModal(
                 'Borrar Citas', 
                 '¿Estás seguro de que quieres borrar **TODAS** las citas agendadas? Esta acción es irreversible.', 
@@ -317,7 +317,6 @@
             }
         }
 
-        /** Renderiza la vista de Inicio con los tres botones solicitados. */
         function renderHome() {
             viewContainer.innerHTML = `
                 <h2 class="text-2xl font-bold text-white mb-6">Selecciona una opción:</h2>
@@ -541,6 +540,7 @@
                 addAppointment(dateStr, timeInput);
             });
         }
+
 
         // =======================================================
         // INICIO DE LA APLICACIÓN
