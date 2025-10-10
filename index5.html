@@ -56,7 +56,7 @@
 
         <div class="text-center mb-6">
             <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-wider">
-                <i class="fas fa-scissors text-accent mr-2 text-3xl md:text-4xl"></i> Cataleya
+                <i class="fas fa-scissors text-accent mr-2 text-3xl md:text-4xl"></i> **Cataleya**
             </h1>
         </div>
         <p class="text-center text-gray-400 mb-8 text-sm sm:text-base">Sistema de Gestión de Citas</p>
@@ -257,10 +257,16 @@
             `;
         }
 
-        /** Renderiza la vista de Calendario Semanal */
+        /** Renderiza la vista de Calendario en formato de cuadrícula semanal */
         function renderCalendar() {
             const now = new Date();
+            // Encuentra el primer día de la semana (Lunes)
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); 
+            const startOfWeek = new Date(today);
+            // 0=Dom, 1=Lun. Ajusta para que Lun sea el primer día.
+            const dayOfWeek = today.getDay(); 
+            const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Si es Dom (0), retrocede 6. Si no, retrocede (día-1).
+            startOfWeek.setDate(today.getDate() - daysToSubtract);
 
             // Agrupa las citas por día
             const appointmentsByDay = appointments.reduce((acc, apt) => {
@@ -271,63 +277,59 @@
                 acc[dateKey].push(apt);
                 return acc;
             }, {});
-
-            // Generar los próximos 7 días para el calendario
-            let calendarHTML = '';
-            let hasFutureAppointments = false;
             
+            // Obtiene el mes y año para el título
+            const monthYear = now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+            
+            let daysHTML = '';
+            const headerNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+            // Generar la cuadrícula de 7 días
             for (let i = 0; i < 7; i++) {
-                const currentDate = new Date(today);
-                currentDate.setDate(today.getDate() + i);
+                const currentDate = new Date(startOfWeek);
+                currentDate.setDate(startOfWeek.getDate() + i);
                 
                 const dateKey = currentDate.toISOString().substring(0, 10);
                 const dayAppointments = (appointmentsByDay[dateKey] || []).sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
                 
-                if (dayAppointments.length > 0) { hasFutureAppointments = true; }
+                const isToday = today.toDateString() === currentDate.toDateString();
                 
-                const dayName = dayNames[currentDate.getDay()];
-                const dayNumber = currentDate.getDate();
-                const isToday = i === 0;
-
-                const headerClass = isToday ? 'bg-accent text-white font-extrabold' : 'bg-secondary-dark text-accent font-bold';
+                // Clases para el día actual
+                const dayClass = isToday ? 'bg-secondary-dark border-2 border-accent' : 'bg-primary-dark border border-gray-700';
+                const dateClass = isToday ? 'text-accent font-extrabold' : 'text-white font-semibold';
                 
                 const appointmentsContent = dayAppointments.length > 0
                     ? dayAppointments.map(apt => `
-                        <div class="appointment-item p-2 ml-1 mb-1 rounded-sm bg-gray-800 flex justify-between items-center transition duration-150">
-                            <p class="text-sm text-white truncate">${apt.name}</p>
-                            <p class="text-xs font-mono text-gray-400">${formatTime(apt.dateTime)}</p>
+                        <div class="appointment-item p-1 ml-1 mb-1 rounded-sm bg-gray-800 flex justify-between items-center transition duration-150">
+                            <p class="text-xs text-white truncate">${apt.name}</p>
+                            <p class="text-[10px] font-mono text-gray-400">${formatTime(apt.dateTime)}</p>
                         </div>
                     `).join('')
-                    : `<p class="text-xs text-gray-500 p-2 text-center">No hay citas</p>`;
-                
-                calendarHTML += `
-                    <div class="day-container rounded-lg mb-4 overflow-hidden">
-                        <div class="p-2 ${headerClass} text-center">
-                            ${isToday ? '<i class="fas fa-sun mr-1"></i> HOY ' : ''}
-                            ${dayName}, ${dayNumber}
+                    : `<p class="text-xs text-gray-500 p-2 text-center">Vacío</p>`;
+
+                daysHTML += `
+                    <div class="${dayClass} p-2 rounded-lg flex flex-col h-48 overflow-hidden">
+                        <div class="text-center pb-2 ${dateClass}">
+                            ${headerNames[i]} <span class="text-sm">${currentDate.getDate()}</span>
                         </div>
-                        <div class="p-2 bg-primary-dark">
+                        <div class="flex-grow overflow-y-auto custom-scrollbar pr-1">
                             ${appointmentsContent}
                         </div>
                     </div>
                 `;
             }
 
-            const content = hasFutureAppointments
-                ? calendarHTML
-                : `<p class="text-center text-gray-500 py-8">No hay citas programadas para los próximos 7 días.</p>`;
-
-
             viewContainer.innerHTML = `
-                <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
-                    <i class="fas fa-calendar-week mr-2 text-accent"></i> Próximos 7 Días
+                <h2 class="text-2xl font-bold text-white mb-4 flex items-center justify-between">
+                    <span><i class="fas fa-calendar-alt mr-2 text-accent"></i> ${monthYear}</span>
+                    <span class="text-sm text-gray-400">Semana Actual</span>
                 </h2>
-                <div class="max-h-96 overflow-y-auto custom-scrollbar pr-2">
-                    ${content}
+                <div class="grid grid-cols-7 gap-1.5 md:gap-2">
+                    ${daysHTML}
                 </div>
                 <button onclick="setView('home')"
                     class="mt-6 w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
-                    <i class="fas fa-arrow-left mr-2"></i> Volver
+                    <i class="fas fa-arrow-left mr-2"></i> Volver a Inicio
                 </button>
             `;
         }
@@ -406,7 +408,7 @@
             const aptToCancel = appointments.find(apt => apt.id === id);
             if (!aptToCancel) { showModal('Error: Cita no encontrada.'); renderCancel(); return; }
             
-            // En un entorno real, usarías un modal de confirmación, aquí lo hacemos directo:
+            // Lógica de cancelación
             appointments = appointments.filter(apt => apt.id !== id);
             saveAppointments(appointments);
             showModal(`La cita de ${aptToCancel.name} ha sido cancelada.`);
@@ -472,8 +474,6 @@
                 return;
             }
 
-            // Extracción de Nombre, Día, Mes, Hora y Periodo... (Lógica completa)
-
             const rawNamePart = text.substring(0, match.index).trim();
             let name = rawNamePart.replace(/agendar (a|una cita a|para) /i, '').trim();
             if (name === '') { name = 'Cliente Sin Nombre'; }
@@ -496,7 +496,7 @@
             
             let aptDate = new Date(currentYear, monthIndex, day, hour, minutes, 0);
 
-            // Lógica de Año
+            // Lógica de Año (Evita agendar en el pasado, pasa al siguiente año)
             if (aptDate < now) {
                  if (aptDate.getMonth() < now.getMonth() || (aptDate.getMonth() === now.getMonth() && aptDate.getTime() < now.getTime())) {
                      aptDate = new Date(currentYear + 1, monthIndex, day, hour, minutes, 0);
