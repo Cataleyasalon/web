@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Citas - Limpieza Histórica</title>
+    <title>Sistema de Citas - Historial Limitado y Horario Local</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* Estilos personalizados para el calendario */
+        /* Estilos personalizados */
         :root {
             --primary-dark: #1f2937; /* Gray-800 */
             --secondary-dark: #374151; /* Gray-700 */
@@ -109,6 +109,7 @@
 
         function formatDateOnly(dateTimeStr) {
             const date = new Date(dateTimeStr);
+            // Si la cita fue creada correctamente con la hora local, esta línea es segura.
             return date.toISOString().substring(0, 10); // YYYY-MM-DD
         }
         
@@ -122,6 +123,7 @@
                 minute: '2-digit', 
                 hour12: true 
             };
+            // toLocaleDateString() automáticamente usa la zona horaria local, lo cual es correcto.
             return date.toLocaleDateString('es-ES', options);
         }
 
@@ -129,11 +131,9 @@
             modalTitle.textContent = title;
             modalMessage.textContent = message;
             
-            // Limpiar acciones previas
             modalActions.innerHTML = '';
 
             if (confirmationCallback) {
-                // Botón de Confirmar
                 const confirmBtn = document.createElement('button');
                 confirmBtn.className = 'px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition duration-150';
                 confirmBtn.textContent = 'Confirmar';
@@ -144,7 +144,6 @@
                 modalActions.appendChild(confirmBtn);
             }
             
-            // Botón de Cerrar/Cancelar
             const closeBtn = document.createElement('button');
             closeBtn.id = 'modalCloseButton';
             closeBtn.className = 'px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition duration-150';
@@ -162,7 +161,7 @@
         }
 
         // =======================================================
-        // GESTIÓN DE LOCALSTORAGE - AJUSTADO para MANTENER 2 MESES DE HISTORIAL
+        // GESTIÓN DE LOCALSTORAGE - RETENCIÓN DE 2 MESES
         // =======================================================
 
         function saveAppointments(apts) {
@@ -194,7 +193,7 @@
                 
                 // 1. CALCULAR LA FECHA LÍMITE (CUTOFF)
                 const now = new Date();
-                // Creamos la fecha límite: retrocedemos 2 meses y establecemos al día 1 a las 00:00:00
+                // Restamos 2 meses al mes actual y establecemos el día al 1 a las 00:00:00
                 const cutoffDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
                 
                 // 2. FILTRAR Y ELIMINAR CITAS ANTIGUAS
@@ -221,20 +220,24 @@
         }
 
         // =======================================================
-        // LÓGICA DE CITAS
+        // LÓGICA DE CITAS - CORRECCIÓN DE ZONA HORARIA Y AM/PM
         // =======================================================
 
         function addAppointment(dateStr, timeStr) {
+            // timeStr viene en formato HH:MM (24 horas, ej: 09:30 o 14:30)
             const [hourStr, minuteStr] = timeStr.split(':');
-            let hour = parseInt(hourStr, 10);
+            const hour = parseInt(hourStr, 10);
             const minute = parseInt(minuteStr, 10);
             
-            // Determinar si es AM o PM
-            const isPM = hour >= 12 && hour < 24;
+            const [yearStr, monthStr, dayStr] = dateStr.split('-');
+            const year = parseInt(yearStr, 10);
+            // JS Date.setMonth es base 0 (0=Enero), por lo que restamos 1 al mes
+            const month = parseInt(monthStr, 10) - 1; 
+            const day = parseInt(dayStr, 10);
 
-            // Construir la fecha completa ISO
-            const dateTimeStr = `${dateStr}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
-            const newAppointmentDate = new Date(dateTimeStr);
+            // *** CORRECCIÓN DE ZONA HORARIA: Crear la fecha en la zona horaria local. ***
+            // Esto resuelve el problema de las citas matutinas que se movían a la tarde.
+            const newAppointmentDate = new Date(year, month, day, hour, minute, 0, 0);
             const now = new Date();
             
             // Validación 1: No agendar en el pasado
@@ -243,7 +246,7 @@
                 return;
             }
 
-            // Validación 2: Chequear disponibilidad
+            // Validación 2: Chequear disponibilidad (30 minutos)
             const isAvailable = appointments.every(apt => {
                 const existingDate = new Date(apt.dateTime);
                 const diff = Math.abs(newAppointmentDate.getTime() - existingDate.getTime());
@@ -258,9 +261,9 @@
 
             // Agendar la cita
             const newAppointment = {
-                id: Date.now(), // ID único basado en el timestamp
-                dateTime: newAppointmentDate.toISOString(), // Guardar en formato ISO
-                // Aquí podrías añadir un campo para el nombre del cliente si fuera necesario
+                id: Date.now(), 
+                // Se guarda en formato ISO, pero la hora ya es local, conservando la hora de la mañana/tarde.
+                dateTime: newAppointmentDate.toISOString(), 
             };
 
             appointments.push(newAppointment);
@@ -268,25 +271,20 @@
             
             showModal('Cita Agendada', `Tu cita ha sido agendada para el ${formatDateTimeDisplay(newAppointment.dateTime)}.`, false);
             
-            // Regresar a la vista del calendario
             setView('calendar'); 
         }
 
         function cancelAppointment(id) {
-            // Convertir el ID a número (está como string en el DOM)
             const appointmentId = Number(id); 
-
-            // Filtrar la lista de citas para remover la que coincide con el ID
             const originalLength = appointments.length;
             appointments = appointments.filter(apt => apt.id !== appointmentId);
             
             if (appointments.length < originalLength) {
                 saveAppointments(appointments);
                 showModal('Cita Cancelada', 'La cita ha sido cancelada exitosamente.', false);
-                // Si estamos en la vista de detalle de día, recargarla
+                // Volver a cargar la vista actual después de cancelar
                 if (currentView === 'dayDetails') {
-                     // Asumimos que la fecha se guardó en algún lugar, si no, es un error de diseño.
-                     // Para simplificar, regresamos al calendario.
+                     // Si estabas en detalles, regresa al calendario para refrescar.
                      setView('calendar');
                 } else {
                      setView(currentView);
@@ -310,17 +308,16 @@
                     renderCalendar();
                     break;
                 case 'dayDetails':
-                    showDayDetails(data); // data es la fecha 'YYYY-MM-DD'
+                    showDayDetails(data); 
                     break;
                 case 'schedule':
-                    renderScheduleForm(data); // data es la fecha 'YYYY-MM-DD'
+                    renderScheduleForm(data); 
                     break;
                 default:
                     renderHome();
             }
         }
 
-        /** Renderiza la vista de Inicio */
         function renderHome() {
             viewContainer.innerHTML = `
                 <h2 class="text-2xl font-bold text-white mb-6">Selecciona una opción:</h2>
@@ -329,18 +326,16 @@
                         class="w-full btn-primary text-white font-semibold py-4 px-6 rounded-lg shadow-md flex items-center justify-center">
                         <i class="fas fa-calendar-alt mr-3"></i> Ver/Agendar Citas
                     </button>
-                    </div>
+                </div>
             `;
         }
         
-        /** Renderiza la vista de Calendario Mensual */
         function renderCalendar() {
             const date = currentCalendarDate;
             const year = date.getFullYear();
             const month = date.getMonth(); 
             const firstDayOfMonth = new Date(year, month, 1);
             let startingDay = firstDayOfMonth.getDay(); 
-            // 0=Dom, 1=Lun, ..., 6=Sáb. Queremos que Lunes sea 0.
             startingDay = startingDay === 0 ? 6 : startingDay - 1; 
 
             const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -349,15 +344,12 @@
 
             let daysHtml = '';
 
-            // Días de la semana
             daysHtml += dayNames.map(day => `<div class="day-cell day-name text-xs font-bold text-accent">${day}</div>`).join('');
 
-            // Espacios vacíos al inicio
             for (let i = 0; i < startingDay; i++) {
                 daysHtml += '<div class="day-cell bg-secondary-dark/50 disabled"></div>';
             }
 
-            // OBTENER FECHAS OCUPADAS: Filtra *solo* las citas del mes que se está viendo
             const occupiedDates = new Set(
                 appointments
                     .filter(apt => new Date(apt.dateTime).getMonth() === month && new Date(apt.dateTime).getFullYear() === year)
@@ -367,29 +359,22 @@
             const today = new Date();
             const todayDateOnly = String(today.getDate()).padStart(2, '0');
             const currentMonthYear = `${year}-${String(month + 1).padStart(2, '0')}`;
+            const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate()); 
 
             for (let day = 1; day <= daysInMonth; day++) {
                 const dayStr = String(day).padStart(2, '0');
                 const fullDateString = `${currentMonthYear}-${dayStr}`;
                 const isOccupied = occupiedDates.has(dayStr);
-                
-                // Determinar si el día actual en el calendario es el día de hoy
                 const isToday = dayStr === todayDateOnly && today.getMonth() === month && today.getFullYear() === year;
 
-                // Determinar si el día actual en el calendario está en el pasado
                 const dayInCalendar = new Date(year, month, day);
-                // Restablecer la hora de 'hoy' para comparar solo el día
-                const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate()); 
-
                 let isPastDay = dayInCalendar < todayMidnight;
                 
                 let classes = isToday ? 'bg-accent/30 border border-accent text-white' : 'bg-secondary-dark text-gray-300';
                 
-                // Si es un día pasado, lo atenuamos, pero lo dejamos clicable para ver el historial de citas (si existe)
                 if (isPastDay) {
                      classes = 'bg-primary-dark/50 text-gray-500 hover:bg-primary-dark/70';
                      if (isOccupied) {
-                          // Si es un día pasado con citas, resaltamos que hay registro
                           classes = 'bg-secondary-dark/80 text-gray-300 border border-occupied-day/50 hover:bg-secondary-dark';
                      }
                 }
@@ -425,7 +410,7 @@
                 <div class="mt-6 flex items-center text-sm text-gray-400 space-x-4">
                     <div class="flex items-center"><div class="occupied-dot mr-2 bg-occupied-day"></div> Cita(s) Agendada(s)</div>
                     <div class="flex items-center"><div class="w-3 h-3 bg-accent/30 border border-accent rounded-full mr-2"></div> Hoy</div>
-                    <div class="flex items-center"><div class="w-3 h-3 bg-primary-dark/50 rounded-full mr-2"></div> Historial/Pasado</div>
+                    <div class="flex items-center"><div class="w-3 h-3 bg-primary-dark/50 rounded-full mr-2"></div> Historial (Pasado)</div>
                 </div>
 
                 <button onclick="setView('home')"
@@ -440,16 +425,11 @@
             renderCalendar();
         }
 
-        /** Muestra los detalles de un día, incluyendo la opción de agendar o cancelar */
         function showDayDetails(dateStr) {
-            // Guarda la fecha actual para usarla al regresar
             const selectedDate = new Date(dateStr);
             const todayMidnight = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
-            
-            // Determina si el día seleccionado es completamente pasado (antes de hoy)
             const isPastDay = selectedDate < todayMidnight; 
 
-            // Citas para este día
             const dayAppointments = appointments
                 .filter(apt => formatDateOnly(apt.dateTime) === dateStr)
                 .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
@@ -459,10 +439,8 @@
             if (dayAppointments.length > 0) {
                 appointmentsHtml = dayAppointments.map(apt => {
                     const aptTime = new Date(apt.dateTime);
-                    // Determinar si la hora de la cita ya pasó
                     const isPassed = aptTime < new Date(); 
                     
-                    // Mostrar la hora en formato 12 horas (ej: 10:30 AM)
                     const timeDisplay = aptTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
 
                     let itemClasses = isPassed ? 'bg-red-900/40 text-gray-400 border-red-700/50' : 'bg-green-800/40 text-white border-green-600/50';
@@ -499,7 +477,7 @@
                         class="w-full btn-primary text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-300 mb-3">
                         <i class="fas fa-plus-circle mr-2"></i> Agendar Nueva Cita
                     </button>` : 
-                    `<p class="p-3 bg-gray-700/50 text-gray-400 rounded-lg text-center"><i class="fas fa-history mr-2"></i> No se pueden agendar citas en días pasados.</p>`
+                    `<p class="p-3 bg-gray-700/50 text-gray-400 rounded-lg text-center"><i class="fas fa-history mr-2"></i> Solo se pueden ver citas pasadas, no agendar.</p>`
                 }
                 
                 <button onclick="setView('calendar')"
@@ -513,12 +491,11 @@
             showModal(
                 'Confirmar Cancelación', 
                 '¿Estás seguro de que deseas cancelar esta cita? Esta acción es irreversible.', 
-                true, // Es un mensaje de advertencia
-                () => cancelAppointment(id) // Callback de confirmación
+                true, 
+                () => cancelAppointment(id) 
             );
         }
 
-        /** Renderiza el formulario para agendar una cita */
         function renderScheduleForm(dateStr) {
             const date = new Date(dateStr);
             const formattedDate = date.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -549,7 +526,6 @@
                 </button>
             `;
 
-            // Manejo del envío del formulario
             document.getElementById('scheduleForm').addEventListener('submit', function(e) {
                 e.preventDefault();
                 const timeInput = document.getElementById('timeInput').value;
