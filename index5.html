@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cataleya - Sistema de Citas</title>
+    <title>Sistema de Citas</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     
@@ -13,14 +13,14 @@
                 extend: {
                     fontFamily: { sans: ['Inter', 'sans-serif'], },
                     colors: {
-                        'primary-dark': '#0d1117', // Fondo muy oscuro
-                        'secondary-dark': '#161b22', // Fondo de tarjeta
-                        'accent': '#a78bfa', // Morado
+                        'primary-dark': '#0d1117',
+                        'secondary-dark': '#161b22',
+                        'accent': '#a78bfa',
                         'accent-hover': '#8b5cf6',
                         'cancel': '#f87171',
-                        'day-base': '#1f2937', // Fondo de día de calendario
-                        'day-current': '#374151', // Fondo de día actual
-                        'day-other': '#111827', // Fondo de días de otros meses
+                        'day-base': '#1f2937',
+                        'day-current': '#374151',
+                        'day-other': '#111827',
                     }
                 }
             }
@@ -35,19 +35,34 @@
             min-height: 100vh;
             display: flex;
             justify-content: center;
-            align-items: center; 
+            align-items: flex-start; /* Nueva alineación para la cabecera */
+            padding-top: 20px;
         }
         .card {
             background-color: #161b22;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
         }
+        /* ESTILO PARA EL CONTENEDOR DE LA IMAGEN DE CABECERA */
+        .header-image-container {
+            width: 100%;
+            max-height: 150px; /* Ajusta esta altura si es necesario */
+            overflow: hidden;
+            border-radius: 0.75rem 0.75rem 0 0; /* Bordes redondeados superiores */
+        }
+        .header-image {
+            width: 100%;
+            height: auto;
+            display: block;
+            object-fit: cover;
+        }
+
         /* Estilos específicos del calendario y citas */
         .appointment-item { border-left: 3px solid #a78bfa; }
         .appointment-item:hover { background-color: #2d3748; }
 
         /* Estilo para el contenedor de un día de calendario */
         .calendar-day {
-            min-height: 100px; /* Asegura que la celda no se colapse */
+            min-height: 100px;
             transition: all 0.2s;
         }
         .calendar-day.active-month {
@@ -68,42 +83,41 @@
 </head>
 <body>
 
-    <div id="app" class="card p-6 sm:p-8 lg:p-10 w-full max-w-lg mx-4 rounded-xl transition-all duration-300">
-
-        <div class="text-center mb-6">
-            <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-wider">
-                <i class="fas fa-scissors text-accent mr-2 text-3xl md:text-4xl"></i> **Cataleya**
-            </h1>
+    <div class="w-full max-w-lg mx-4 transition-all duration-300">
+        
+        <div class="header-image-container">
+            <img src="cabecera.png" alt="Cabecera del Negocio" class="header-image">
         </div>
-        <p class="text-center text-gray-400 mb-8 text-sm sm:text-base">Sistema de Gestión de Citas</p>
 
-        <div id="view-container">
-            </div>
+        <div id="app" class="card p-6 sm:p-8 lg:p-10 w-full rounded-b-xl">
+        
+            <div id="view-container">
+                </div>
 
-        <div id="message-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-            <div class="bg-secondary-dark p-6 rounded-lg max-w-sm w-full text-center border border-accent">
-                <p id="modal-text" class="text-white text-lg mb-4"></p>
-                <button onclick="closeModal()" class="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-lg transition duration-200 shadow-md shadow-violet-700/50">
-                    Entendido
-                </button>
-            </div>
-        </div>
-        <div id="reminder-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-40">
-            <div class="bg-secondary-dark p-6 rounded-xl max-w-sm w-full text-left border border-accent shadow-2xl shadow-violet-700/50 transform transition-all duration-300 scale-100">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 id="reminder-title" class="text-xl font-bold text-accent"></h3>
-                    <button onclick="closeReminderModal()" class="text-gray-400 hover:text-white transition duration-200">
-                        <i class="fas fa-times"></i>
+            <div id="message-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+                <div class="bg-secondary-dark p-6 rounded-lg max-w-sm w-full text-center border border-accent">
+                    <p id="modal-text" class="text-white text-lg mb-4"></p>
+                    <button onclick="closeModal()" class="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-lg transition duration-200 shadow-md shadow-violet-700/50">
+                        Entendido
                     </button>
                 </div>
-                <div id="reminder-content" class="text-gray-300 space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+            </div>
+            <div id="reminder-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-40">
+                <div class="bg-secondary-dark p-6 rounded-xl max-w-sm w-full text-left border border-accent shadow-2xl shadow-violet-700/50 transform transition-all duration-300 scale-100">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 id="reminder-title" class="text-xl font-bold text-accent"></h3>
+                        <button onclick="closeReminderModal()" class="text-gray-400 hover:text-white transition duration-200">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
-                <button onclick="closeReminderModal()" class="mt-4 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
-                    Cerrar
-                </button>
+                    <div id="reminder-content" class="text-gray-300 space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                    </div>
+                    <button onclick="closeReminderModal()" class="mt-4 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                        Cerrar
+                    </button>
+                </div>
             </div>
         </div>
-
     </div>
 
     <script>
@@ -113,10 +127,10 @@
         const STORAGE_KEY = 'cataleya_appointments_data';
         let currentView = 'home';
         // Inicializa con la fecha actual para el calendario
-        let currentCalendarDate = new Date(); 
+        let currentCalendarDate = new Date(); 
         let appointments = [];
         let recognition = null;
-        
+         
         const monthMap = {
             'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3, 'mayo': 4, 'junio': 5,
             'julio': 6, 'agosto': 7, 'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11
@@ -152,7 +166,7 @@
             const timeStr = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
             return `${dateStr} a las ${timeStr}`;
         }
-        
+         
         /** Formatea la hora como 'HH:mm' */
         function formatTime(date) {
              const d = new Date(date);
@@ -161,7 +175,6 @@
 
         // =======================================================
         // GESTIÓN DE LOCALSTORAGE
-        // (Se mantiene la lógica de carga y guardado)
         // =======================================================
 
         function saveAppointments(apts, timestamp = Date.now()) {
@@ -181,19 +194,19 @@
                     saveAppointments([], Date.now());
                     return [];
                 }
-                
+                 
                 const data = JSON.parse(storedData);
                 let currentAppointments = data.appointments;
                 const now = new Date();
-                
+                 
                 // Lógica de Limpieza de Historial (4 meses para atrás)
                 const fourMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 4, now.getDate());
-                
+                 
                 const filteredAppointments = currentAppointments.filter(apt => {
                     const aptDate = new Date(apt.dateTime);
                     return aptDate >= fourMonthsAgo;
                 });
-                
+                 
                 let shouldSave = currentAppointments.length !== filteredAppointments.length;
                 currentAppointments = filteredAppointments;
 
@@ -201,7 +214,7 @@
                 if (now.getFullYear() > lastDate.getFullYear() || now.getMonth() > lastDate.getMonth()) {
                     shouldSave = true;
                 }
-                
+                 
                 if (shouldSave) {
                     saveAppointments(currentAppointments, now.getTime());
                 }
@@ -218,7 +231,7 @@
         // =======================================================
         // FUNCIONES DE NAVEGACIÓN Y DETALLES DEL CALENDARIO
         // =======================================================
-        
+         
         /** Cambia el mes actual del calendario y lo re-renderiza. */
         function changeMonth(offset) {
             const newDate = currentCalendarDate;
@@ -231,7 +244,7 @@
         /** Muestra los detalles de las citas de un día específico */
         function showDayDetails(dateKey) {
             const dayAppointments = appointments.filter(apt => apt.dateTime.startsWith(dateKey));
-            
+             
             const dateParts = dateKey.split('-');
             const displayDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -253,7 +266,7 @@
             } else {
                 content = `<p class="text-white text-center py-4">¡Día libre! No hay citas agendadas.</p>`;
             }
-            
+             
             // Reutiliza la función para mostrar el modal de recordatorio/detalles
             document.getElementById('reminder-title').textContent = title;
             document.getElementById('reminder-content').innerHTML = content;
@@ -312,7 +325,7 @@
             const firstDayOfMonth = new Date(calendarYear, calendarMonth, 1);
             // 2. Determinar qué día de la semana es (Lun=0, Dom=6)
             let startingDay = firstDayOfMonth.getDay();
-            if (startingDay === 0) startingDay = 6; else startingDay--; 
+            if (startingDay === 0) startingDay = 6; else startingDay--; // Lunes = 0, Domingo = 6
 
             // 3. Obtener el número de días en el mes
             const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
@@ -396,16 +409,25 @@
             }
 
             viewContainer.innerHTML = `
-                <div class="flex justify-between items-center mb-4">
-                    <button onclick="changeMonth(-1)" class="text-accent hover:text-accent-hover text-2xl p-2 rounded-full transition duration-150">
-                        <i class="fas fa-chevron-left"></i>
+                <div class="flex justify-between items-center mb-4 relative">
+                    
+                    <button onclick="setView('home')"
+                        class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-3 rounded-lg transition duration-300 text-sm flex items-center z-10">
+                        <i class="fas fa-arrow-left mr-1"></i> Volver
                     </button>
-                    <h2 class="text-2xl font-bold text-white uppercase flex items-center">
-                        <i class="fas fa-calendar-alt mr-2 text-accent text-xl"></i> ${monthYearTitle}
+
+                    <h2 class="text-xl font-bold text-white uppercase absolute left-1/2 transform -translate-x-1/2 flex items-center">
+                        ${monthYearTitle}
                     </h2>
-                    <button onclick="changeMonth(1)" class="text-accent hover:text-accent-hover text-2xl p-2 rounded-full transition duration-150">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
+
+                    <div class="flex ml-auto z-10">
+                        <button onclick="changeMonth(-1)" class="text-accent hover:text-accent-hover text-2xl p-1 transition duration-150">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button onclick="changeMonth(1)" class="text-accent hover:text-accent-hover text-2xl p-1 transition duration-150">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="grid grid-cols-7 gap-1.5 text-xs font-bold text-center text-accent mb-2">
@@ -416,16 +438,12 @@
                     ${daysHTML}
                 </div>
                 
-                <button onclick="setView('home')"
-                    class="mt-6 w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
-                    <i class="fas fa-arrow-left mr-2"></i> Volver a Inicio
-                </button>
-            `;
+                `;
         }
 
         function renderCancel() {
             const hasAppointments = appointments.length > 0;
-            const content = hasAppointments 
+            const content = hasAppointments 
                 ? appointments.map(apt => `
                     <div class="appointment-item p-4 mb-2 bg-secondary-dark rounded-lg flex justify-between items-center transition duration-150 border border-gray-700" id="apt-${apt.id}">
                         <div>
@@ -457,7 +475,7 @@
         function renderView() {
             appointments = loadAppointments();
             if (recognition) { recognition.stop(); }
-            
+             
             try {
                 switch (currentView) {
                     case 'calendar': renderCalendar(); break;
@@ -472,9 +490,8 @@
 
         // =======================================================
         // GESTIÓN DE CITAS Y VOZ
-        // (Se mantiene la lógica de voz sin cambios)
         // =======================================================
-        
+         
         function addAppointment(name, dateString) {
             const newAppointment = {
                 id: crypto.randomUUID(),
@@ -496,7 +513,7 @@
         function confirmCancelAppointment(id) {
             const aptToCancel = appointments.find(apt => apt.id === id);
             if (!aptToCancel) { showModal('Error: Cita no encontrada.'); renderCancel(); return; }
-            
+             
             appointments = appointments.filter(apt => apt.id !== id);
             saveAppointments(appointments);
             showModal(`La cita de ${aptToCancel.name} ha sido cancelada.`);
@@ -565,9 +582,9 @@
             const rawNamePart = text.substring(0, match.index).trim();
             let name = rawNamePart.replace(/agendar (a|una cita a|para) /i, '').trim();
             if (name === '') { name = 'Cliente Sin Nombre'; }
-            
+             
             const day = parseInt(match[2]);
-            const monthName = match[4]; 
+            const monthName = match[4]; 
             let hour = parseInt(match[7]);
             const minutes = match[8] ? parseInt(match[8].substring(1)) : 0;
             const period = match[9] || '';
@@ -575,18 +592,18 @@
             const monthIndex = monthMap[monthName];
             const now = new Date();
             let currentYear = now.getFullYear();
-            
+             
             const isPM = period.includes('tarde') || period.includes('pm') || period.includes('noche');
             const isAM = period.includes('mañana') || period.includes('am') || period.includes('madrugada');
 
-            if (isPM && hour < 12) { hour += 12; } 
+            if (isPM && hour < 12) { hour += 12; } 
             else if ((isAM || period === '') && hour === 12) { hour = 0; }
-            
+             
             let aptDate = new Date(currentYear, monthIndex, day, hour, minutes, 0);
 
             if (aptDate < now) {
                  if (aptDate.getMonth() < now.getMonth() || (aptDate.getMonth() === now.getMonth() && aptDate.getTime() < now.getTime())) {
-                     aptDate = new Date(currentYear + 1, monthIndex, day, hour, minutes, 0);
+                      aptDate = new Date(currentYear + 1, monthIndex, day, hour, minutes, 0);
                  }
             }
 
@@ -598,14 +615,13 @@
 
             showModal(`✅ ¿Quieres agendar a ${name} para el ${formatDateTime(aptDate)}?`);
 
-            setTimeout(() => { addAppointment(name, aptDate.toISOString()); }, 1000); 
+            setTimeout(() => { addAppointment(name, aptDate.toISOString()); }, 1000); 
         }
 
         // =======================================================
         // GESTIÓN DE RECORDATORIO DIARIO (10:00 PM)
-        // (Se mantiene sin cambios)
         // =======================================================
-        
+         
         function getTomorrowDateString() {
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
@@ -613,19 +629,18 @@
         }
 
         function checkAndScheduleDailyReminder() {
-            // (La implementación se mantiene para funcionalidad de recordatorio)
             const now = new Date();
-            const targetHour = 22; 
-            
+            const targetHour = 22; 
+             
             if (now.getHours() >= targetHour) {
                 const todayDateString = now.toISOString().substring(0, 10);
                 const reminderShownKey = `reminder_shown_${todayDateString}`;
-                
+                 
                 if (localStorage.getItem(reminderShownKey) === 'true') { return; }
 
                 const tomorrowDateString = getTomorrowDateString();
                 const appointmentsTomorrow = appointments.filter(apt => apt.dateTime.startsWith(tomorrowDateString));
-                
+                 
                 let title = '';
                 let content = '';
 
@@ -640,25 +655,26 @@
                     title = `Recordatorio Diario 🌙`;
                     content = `<p class="text-white text-center py-4">¡Excelente! No hay citas programadas para el día de mañana.</p>`;
                 }
-                
+                 
                 // Reutiliza showDayDetails para mostrar el recordatorio
                 document.getElementById('reminder-title').textContent = title;
                 document.getElementById('reminder-content').innerHTML = content;
                 document.getElementById('reminder-modal').classList.remove('hidden');
-                
+                 
                 localStorage.setItem(reminderShownKey, 'true');
-            } 
+            } 
         }
 
         // =======================================================
         // INICIO DE LA APLICACIÓN
         // =======================================================
-        
-        window.onload = () => {
-             appointments = loadAppointments();
-             renderView();
-             checkAndScheduleDailyReminder(); 
-        };
+        document.addEventListener('DOMContentLoaded', () => {
+            appointments = loadAppointments();
+            renderView();
+            checkAndScheduleDailyReminder();
+            // Ejecuta la comprobación cada 5 minutos para el recordatorio nocturno
+            setInterval(checkAndScheduleDailyReminder, 300000); 
+        });
 
     </script>
 </body>
