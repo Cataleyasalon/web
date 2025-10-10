@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Citas - Menú de 3 Opciones Original</title>
+    <title>Sistema de Citas - Código Original (Vulnerable)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -170,7 +170,7 @@
         }
 
         // =======================================================
-        // GESTIÓN DE LOCALSTORAGE (VERSIÓN ORIGINAL PERO CON LIMPIEZA)
+        // GESTIÓN DE LOCALSTORAGE - ORIGINAL (SIN FILTRO/LIMPIEZA)
         // =======================================================
 
         function saveAppointments(apts) {
@@ -190,29 +190,14 @@
             try {
                 const storedData = localStorage.getItem(STORAGE_KEY);
                 if (!storedData) {
-                    // inicializa con objeto que contiene appointments (manteniendo la estructura original)
                     saveAppointments([]);
                     return [];
                 }
                 
                 const data = JSON.parse(storedData);
-
-                // === NUEVO: eliminar citas con más de 4 meses de antigüedad ===
-                const now = new Date();
-                const fourMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 4, now.getDate());
-                const originalAppointments = Array.isArray(data.appointments) ? data.appointments : [];
-                const filtered = originalAppointments.filter(apt => {
-                    const aptDate = new Date(apt.dateTime);
-                    return aptDate >= fourMonthsAgo;
-                });
-
-                // Si hubo limpieza, guardamos la versión limpia manteniendo la estructura
-                if (filtered.length !== originalAppointments.length) {
-                    saveAppointments(filtered);
-                }
-
-                // Mantener el comportamiento original: devolver array ordenado
-                return filtered.sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
+                
+                // Carga simple sin filtros automáticos de historial
+                return data.appointments.sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
 
             } catch (error) {
                 console.error('Error al cargar o analizar localStorage:', error);
@@ -222,33 +207,33 @@
         }
 
         // =======================================================
-        // LÓGICA DE CITAS (ORIGINAL, ADAPTADA)
+        // LÓGICA DE CITAS - ORIGINAL (VULNERABLE A UTC)
         // =======================================================
 
         function addAppointment(dateStr, timeStr) {
-            // Construir ISO local sin manipular zona horaria inesperadamente
-            const dateTimeStr = `${dateStr}T${timeStr}:00`;
+            // Lógica original de registro (propensa a errores de UTC)
+            const [hourStr, minuteStr] = timeStr.split(':');
+            let hour = parseInt(hourStr, 10);
+            const minute = parseInt(minuteStr, 10);
+            
+            const dateTimeStr = `${dateStr}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
             const newAppointmentDate = new Date(dateTimeStr);
             const now = new Date();
             
             if (newAppointmentDate <= now) {
                 showModal('Error al Agendar', 'No se puede agendar una cita en el pasado o a una hora ya transcurrida.', true);
-                return;
+                return false;
             }
 
-            // === NUEVO: Validación solo para el MISMO DÍA ===
-            // Evitar duplicados/solapamientos aplicando el mínimo de 30 minutos
-            const sameDayAppointments = appointments.filter(apt => formatDateOnly(apt.dateTime) === dateStr);
-
-            const isAvailable = sameDayAppointments.every(apt => {
+            const isAvailable = appointments.every(apt => {
                 const existingDate = new Date(apt.dateTime);
                 const diff = Math.abs(newAppointmentDate.getTime() - existingDate.getTime());
-                return diff >= (30 * 60 * 1000); // 30 minutos en ms
+                return diff >= (30 * 60 * 1000); 
             });
 
             if (!isAvailable) {
-                showModal('Error al Agendar', 'Ya existe una cita muy cercana en este día. Intervalo mínimo de 30 minutos.', true);
-                return;
+                showModal('Error al Agendar', 'Ya existe una cita muy cercana a esta hora. Intervalo mínimo de 30 minutos.', true);
+                return false;
             }
 
             const newAppointment = {
@@ -261,7 +246,7 @@
             
             showModal('Cita Agendada', `Tu cita ha sido agendada para el ${formatDateTimeDisplay(newAppointment.dateTime)}.`, false);
             
-            setView('calendar'); 
+            return true;
         }
 
         function cancelAppointment(id) {
@@ -279,17 +264,17 @@
         }
 
         // =======================================================
-        // FUNCIONES DE MENÚ PRINCIPAL (RESTAURADAS)
+        // FUNCIONES DE MENÚ PRINCIPAL (RESTAURADAS A MARCADOR)
         // =======================================================
 
         function scheduleWithVoice() {
-            // Lógica de dictado: solo muestra un mensaje, ya que el código de voz es avanzado.
+            // RESTAURACIÓN: Muestra el mensaje de que requiere implementación.
             showModal('Agendar con Dictado 🎤', 'Esta función requiere implementar la API de Reconocimiento de Voz. Se continuará en el modo de formulario manual.', false);
-            setView('calendar'); // Redirige al calendario para agendar manualmente.
+            setView('calendar'); 
         }
 
         function viewAppointments() {
-             // Redirige directamente al calendario, ya que la vista de "Ver Citas" se realiza allí.
+             // Redirige directamente al calendario.
             setView('calendar');
         }
 
@@ -532,12 +517,11 @@
                 <form id="scheduleForm" class="space-y-4">
                     <div>
                         <label for="timeInput" class="block text-sm font-medium text-gray-300 mb-2">Hora de la Cita:</label>
-                        <!-- === CAMBIO: permitir mañana y tarde 06:00 - 21:00 === -->
                         <input type="time" id="timeInput" name="time" required 
-                               min="06:00" max="21:00" step="1800" 
+                               min="09:00" max="17:00" step="1800" 
                                class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-accent focus:border-accent"
                                value="09:00">
-                        <p class="text-xs text-gray-400 mt-1">Horario de 6:00 AM a 9:00 PM. Los intervalos son de 30 minutos.</p>
+                        <p class="text-xs text-gray-400 mt-1">Horario de 9:00 AM a 5:00 PM. Los intervalos son de 30 minutos.</p>
                     </div>
 
                     <button type="submit" class="w-full btn-primary text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-300">
@@ -557,6 +541,7 @@
                 addAppointment(dateStr, timeInput);
             });
         }
+
 
         // =======================================================
         // INICIO DE LA APLICACIÓN
