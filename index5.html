@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Citas - Código Original</title>
+    <title>Sistema de Citas - Código Inicial (Original)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -103,6 +103,7 @@
     </div>
 
     <script>
+
         const STORAGE_KEY = 'appointment_manager_data';
         let appointments = [];
         let currentCalendarDate = new Date();
@@ -170,7 +171,7 @@
         }
 
         // =======================================================
-        // GESTIÓN DE LOCALSTORAGE - LÓGICA ORIGINAL CON FALLAS
+        // GESTIÓN DE LOCALSTORAGE - LÓGICA ORIGINAL
         // =======================================================
 
         function saveAppointments(apts) {
@@ -187,8 +188,7 @@
         }
 
         /**
-         * Carga las citas. NOTA: Esta versión original tenía la lógica de borrado inconsistente
-         * o no tenía la corrección de zona horaria.
+         * Carga las citas y solo elimina las que están en el pasado de forma simple.
          */
         function loadAppointments() {
             try {
@@ -200,19 +200,16 @@
                 
                 const data = JSON.parse(storedData);
                 
-                // --- Lógica de filtrado original (o la primera versión simple) ---
                 const now = new Date().getTime(); 
                 
-                // Esto podría no ser suficiente para el registro histórico deseado 
-                // y puede haber causado duplicaciones percibidas.
+                // Filtro simple: solo mantiene las citas que están en el presente o futuro
                 const validAppointments = data.appointments.filter(apt => {
                     const aptTime = new Date(apt.dateTime).getTime();
-                    // Solo mantiene citas que están en el presente o futuro
                     return aptTime >= now;
                 });
                 
                 if (validAppointments.length !== data.appointments.length) {
-                    console.log(`Se eliminaron ${data.appointments.length - validAppointments.length} citas pasadas (limpieza simple original).`);
+                    console.log(`Se eliminaron ${data.appointments.length - validAppointments.length} citas pasadas.`);
                     saveAppointments(validAppointments);
                 }
                 
@@ -226,16 +223,16 @@
         }
 
         // =======================================================
-        // LÓGICA DE CITAS - VERSIÓN ANTERIOR
+        // LÓGICA DE CITAS - ORIGINAL (PROPENSA A ERRORES DE HORARIO)
         // =======================================================
 
         function addAppointment(dateStr, timeStr) {
-            // Lógica que usaba la simple concatenación de strings, propensa a errores de UTC/Zona Horaria
+            // Lógica original que usa concatenación de strings para crear la fecha
             const [hourStr, minuteStr] = timeStr.split(':');
             let hour = parseInt(hourStr, 10);
             const minute = parseInt(minuteStr, 10);
             
-            // Creación de fecha simple que puede ser afectada por desfase de zona horaria (UTC)
+            // Creación de fecha simple: esta línea es propensa a errores de desfase de zona horaria (UTC)
             const dateTimeStr = `${dateStr}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
             const newAppointmentDate = new Date(dateTimeStr);
             const now = new Date();
