@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Citas - Versión Corregida</title>
+    <title>Sistema de Citas - Versión con Dictado Implementado</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -69,6 +69,15 @@
         .btn-primary:hover {
             background-color: #dc2626; /* Red-600 */
         }
+        .listening-indicator {
+            background-color: #f59e0b; /* Amber-500 */
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+        }
     </style>
 </head>
 <body>
@@ -108,6 +117,7 @@
         let appointments = [];
         let currentCalendarDate = new Date();
         let currentView = 'home';
+        let recognition = null; // Para la API de Voz
         
         const viewContainer = document.getElementById('viewContainer');
         const modal = document.getElementById('modal');
@@ -120,7 +130,6 @@
         // =======================================================
 
         function formatDateOnly(dateTimeStr) {
-            // Usa el Date object de JS para manejar el formato de la cita
             const date = new Date(dateTimeStr);
             return date.toISOString().substring(0, 10); // YYYY-MM-DD
         }
@@ -172,7 +181,7 @@
         }
 
         // =======================================================
-        // GESTIÓN DE LOCALSTORAGE - LÓGICA CORREGIDA
+        // GESTIÓN DE LOCALSTORAGE (Corregida)
         // =======================================================
 
         function saveAppointments(apts) {
@@ -190,7 +199,6 @@
 
         /**
          * Carga las citas y limita el historial de citas pasadas a 2 meses.
-         * ESTA ES LA CORRECCIÓN CLAVE PARA LA LIMPIEZA DEL HISTORIAL.
          */
         function loadAppointments() {
             try {
@@ -206,7 +214,6 @@
                 // 1. Determinar el límite de tiempo de retención (2 meses atrás)
                 const limitDate = new Date();
                 limitDate.setMonth(limitDate.getMonth() - HISTORY_MONTHS);
-                // Establecer la hora a medianoche para que se incluyan citas de todo el día límite
                 limitDate.setHours(0, 0, 0, 0); 
                 
                 // 2. Filtrar y mantener solo las citas que son FUTURAS o dentro del límite de 2 meses
@@ -231,19 +238,17 @@
         }
 
         // =======================================================
-        // LÓGICA DE CITAS - LÓGICA CORREGIDA DE ZONA HORARIA
+        // LÓGICA DE CITAS Y VALIDACIÓN (Corregida)
         // =======================================================
 
+        /** Agrega una cita y valida disponibilidad. */
         function addAppointment(dateStr, timeStr) {
             const [hourStr, minuteStr] = timeStr.split(':');
             let hour = parseInt(hourStr, 10);
             const minute = parseInt(minuteStr, 10);
             
-            // *** CORRECCIÓN CLAVE: Usar new Date(año, mes, día, hora, minuto) para forzar la fecha
-            // a la zona horaria local, evitando el error de desfase UTC (09:00 -> 00:00 del día anterior) ***
+            // CORRECCIÓN ZONA HORARIA: Usar constructor de fecha local (year, month, day, hour, minute)
             const [year, month, day] = dateStr.split('-').map(Number);
-            
-            // Creamos la fecha usando la hora local. Month es 0-indexado, por eso es (month - 1)
             const newAppointmentDate = new Date(year, month - 1, day, hour, minute, 0, 0);
             
             const now = new Date();
@@ -251,7 +256,7 @@
             // Validación 1: No agendar en el pasado
             if (newAppointmentDate <= now) {
                 showModal('Error al Agendar', 'No se puede agendar una cita en el pasado o a una hora ya transcurrida.', true);
-                return;
+                return false; // Devuelve false para indicar fallo
             }
 
             // Validación 2: Chequear disponibilidad (30 minutos)
@@ -263,10 +268,10 @@
 
             if (!isAvailable) {
                 showModal('Error al Agendar', 'Ya existe una cita muy cercana a esta hora. Intervalo mínimo de 30 minutos.', true);
-                return;
+                return false; // Devuelve false para indicar fallo
             }
 
-            // Agendar la cita. Convertimos a ISO string para guardar, pero sabemos que la hora local es correcta.
+            // Agendar la cita
             const newAppointment = {
                 id: Date.now(), 
                 dateTime: newAppointmentDate.toISOString(), 
@@ -277,7 +282,7 @@
             
             showModal('Cita Agendada', `Tu cita ha sido agendada para el ${formatDateTimeDisplay(newAppointment.dateTime)}.`, false);
             
-            setView('calendar'); 
+            return true; // Devuelve true para indicar éxito
         }
 
         function cancelAppointment(id) {
@@ -288,7 +293,6 @@
             if (appointments.length < originalLength) {
                 saveAppointments(appointments);
                 showModal('Cita Cancelada', 'La cita ha sido cancelada exitosamente.', false);
-                // Vuelve al calendario o a la vista de detalles del día para actualizar la lista.
                 setView('calendar'); 
             } else {
                 showModal('Error al Cancelar', 'No se encontró la cita a cancelar.', true);
@@ -296,41 +300,168 @@
         }
 
         // =======================================================
-        // FUNCIONES DE MENÚ PRINCIPAL
+        // IMPLEMENTACIÓN DE RECONOCIMIENTO DE VOZ
         // =======================================================
 
         function scheduleWithVoice() {
-            // Lógica de dictado: solo muestra un mensaje, ya que el código de voz es avanzado.
-            showModal('Agendar con Dictado 🎤', 'Esta función requiere implementar la API de Reconocimiento de Voz. Se continuará en el modo de formulario manual.', false);
-            setView('calendar'); // Redirige al calendario para agendar manualmente.
+            // Comprobación de compatibilidad
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                showModal('Error de Compatibilidad', 'Tu navegador no soporta la API de Reconocimiento de Voz. Usa Chrome o Edge.', true);
+                return;
+            }
+            
+            setView('voiceSchedule');
         }
 
-        function viewAppointments() {
-             // Redirige directamente al calendario, que ahora está limitado por 2 meses de historial.
-            setView('calendar');
-        }
+        function startVoiceRecognition() {
+            // Detiene cualquier reconocimiento anterior
+            if (recognition) {
+                recognition.stop();
+            }
 
-        function deleteAppointments() {
-            // Lógica simple para mostrar el botón de borrado de todas las citas.
-            showModal(
-                'Borrar TODAS las Citas', 
-                '¿Estás seguro de que quieres borrar **TODAS** las citas agendadas? Esta acción es irreversible.', 
-                true, 
-                () => {
-                    appointments = []; // Vacía el array
-                    saveAppointments([]); // Guarda el array vacío en localStorage
-                    showModal('Éxito', 'Todas las citas han sido borradas exitosamente.', false);
-                    setView('home');
+            // Define el objeto de reconocimiento para Webkit (Chrome/Edge)
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+
+            recognition.lang = 'es-ES'; // Establece el idioma a Español
+            recognition.interimResults = false; // Solo devuelve resultados finales
+            recognition.maxAlternatives = 1;
+
+            const voiceOutput = document.getElementById('voiceOutput');
+            const voiceStatus = document.getElementById('voiceStatus');
+            const micIcon = document.getElementById('micIcon');
+            
+            if (!micIcon || !voiceStatus) return;
+
+            micIcon.classList.add('listening-indicator');
+            micIcon.classList.remove('text-gray-500');
+            micIcon.classList.add('text-white');
+            voiceStatus.textContent = 'Escuchando... Di: "Cita el [día/fecha] a las [hora]".';
+
+            recognition.onresult = (event) => {
+                const last = event.results.length - 1;
+                const command = event.results[last][0].transcript;
+                voiceOutput.textContent = `Comando reconocido: "${command}"`;
+                processVoiceCommand(command);
+            };
+
+            recognition.onerror = (event) => {
+                micIcon.classList.remove('listening-indicator', 'text-white');
+                micIcon.classList.add('text-gray-500');
+                voiceStatus.textContent = `Error: ${event.error}. Inténtalo de nuevo.`;
+                console.error('Speech Recognition Error:', event.error);
+                if (event.error !== 'no-speech') {
+                    showModal('Error de Dictado', `Hubo un error en el reconocimiento de voz: ${event.error}. Asegúrate de conceder permisos al micrófono.`, true);
                 }
-            );
+            };
+
+            recognition.onend = () => {
+                micIcon.classList.remove('listening-indicator', 'text-white');
+                micIcon.classList.add('text-gray-500');
+                if (voiceStatus.textContent === 'Escuchando... Di: "Cita el [día/fecha] a las [hora]".') {
+                    voiceStatus.textContent = 'Reconocimiento finalizado. Inténtalo de nuevo.';
+                }
+            };
+
+            recognition.start();
         }
-        
+
+        function processVoiceCommand(command) {
+            // Ejemplo de comando: "Cita el 15 de Octubre a las 10 y media" o "Cita el Lunes a las 9"
+            command = command.toLowerCase().trim();
+            const today = new Date();
+            let dateStr = null;
+            let timeStr = null;
+
+            // 1. EXTRAER LA FECHA
+            
+            // Intento 1: Días de la semana (Lunes, Martes, etc.)
+            const daysOfWeek = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+            const dayMatch = daysOfWeek.find(d => command.includes(d));
+
+            if (dayMatch) {
+                const targetDayIndex = daysOfWeek.indexOf(dayMatch);
+                let targetDate = new Date(today);
+                // Calcula el próximo día de la semana
+                targetDate.setDate(today.getDate() + (targetDayIndex + 7 - today.getDay()) % 7);
+                // Si el día de la semana es hoy o ya pasó, agendamos para la próxima semana
+                if (targetDate <= today) {
+                    targetDate.setDate(targetDate.getDate() + 7);
+                }
+                dateStr = targetDate.toISOString().substring(0, 10);
+            } 
+            
+            // Intento 2: Fechas absolutas (el 15 de octubre)
+            const dateRegex = /(\d{1,2}) de (\w+)/;
+            const dateParts = command.match(dateRegex);
+
+            if (dateParts) {
+                const day = parseInt(dateParts[1]);
+                const monthName = dateParts[2].toLowerCase();
+                const monthNamesEs = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+                const monthIndex = monthNamesEs.indexOf(monthName);
+                
+                if (monthIndex !== -1) {
+                    const targetDate = new Date(today.getFullYear(), monthIndex, day);
+                    // Si la fecha es pasada, asumimos el próximo año
+                    if (targetDate < today) {
+                        targetDate.setFullYear(today.getFullYear() + 1);
+                    }
+                    dateStr = targetDate.toISOString().substring(0, 10);
+                }
+            }
+
+
+            // 2. EXTRAER LA HORA
+            const timeRegex = /(\d{1,2})(?: y media| y cuarto)?/i;
+            const timeParts = command.match(timeRegex);
+
+            if (timeParts) {
+                let hour = parseInt(timeParts[1]);
+                let minute = 0;
+                
+                // Normalización de frases comunes
+                if (command.includes('y media')) {
+                    minute = 30;
+                } else if (command.includes('y cuarto')) {
+                    minute = 15;
+                    // Forzamos el ajuste a 30 minutos (regla de la app)
+                    minute = 30; 
+                }
+
+                // Ajuste AM/PM (muy básico, asume horario laboral 9-17)
+                if (hour < 9) hour += 12; // Si dice 5, asume 5 PM (17:00)
+
+                timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+            }
+
+            // 3. AGENDAR
+            if (dateStr && timeStr) {
+                if (addAppointment(dateStr, timeStr)) {
+                    // Si la cita fue exitosa, el modal de confirmación se encargará de notificar.
+                    setView('calendar');
+                } else {
+                    // Si la cita falló (pasado o duplicado), addAppointment ya mostró un modal.
+                    setView('voiceSchedule'); // Permite otro intento de dictado
+                }
+            } else {
+                showModal('Error de Comando', 'No pude entender la fecha y hora. Usa el formato: "Cita el [día/fecha] a las [hora]". Ejemplo: "Cita el lunes a las 10:30".', true);
+                setView('voiceSchedule'); // Permite otro intento
+            }
+        }
+
+
         // =======================================================
         // VISTAS Y RENDERIZADO
         // =======================================================
 
         function setView(viewName, data = null) {
             currentView = viewName;
+            // Detener el reconocimiento si cambiamos de vista
+            if (recognition && viewName !== 'voiceSchedule') {
+                recognition.stop();
+            }
+
             switch (viewName) {
                 case 'home':
                     renderHome();
@@ -343,6 +474,9 @@
                     break;
                 case 'schedule':
                     renderScheduleForm(data); 
+                    break;
+                case 'voiceSchedule':
+                    renderVoiceSchedule();
                     break;
                 default:
                     renderHome();
@@ -369,6 +503,54 @@
                 <p class="text-gray-400 text-sm mt-6 text-center">Para agendar manualmente, usa la opción "Ver Citas" e ingresa al Calendario.</p>
             `;
         }
+
+        function renderVoiceSchedule() {
+            viewContainer.innerHTML = `
+                <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
+                    <i class="fas fa-microphone-alt mr-2 text-accent"></i> Agendar por Voz
+                </h2>
+                
+                <div class="text-center p-6 bg-gray-700 rounded-lg shadow-md">
+                    <i id="micIcon" class="fas fa-microphone text-gray-500 text-6xl mb-4 transition duration-300"></i>
+                    <p id="voiceStatus" class="text-gray-300 text-lg font-semibold mb-4">Pulsa el botón para comenzar a dictar.</p>
+                    <div class="mb-4 p-3 bg-gray-800 rounded-lg">
+                        <p class="text-sm text-gray-400">Comando Sugerido:</p>
+                        <p class="text-white font-mono text-base">"Cita el [Día/Fecha] a las [Hora]"</p>
+                    </div>
+                    <button onclick="startVoiceRecognition()"
+                        class="w-full btn-primary text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-300 mb-4">
+                        <i class="fas fa-play mr-2"></i> Iniciar Dictado
+                    </button>
+                    <p id="voiceOutput" class="text-gray-400 italic text-sm mt-3 h-6">Esperando comando...</p>
+                </div>
+                
+                <button onclick="setView('home')"
+                    class="mt-6 w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-300">
+                    <i class="fas fa-arrow-left mr-2"></i> Volver al Inicio
+                </button>
+            `;
+        }
+        
+        function viewAppointments() {
+            setView('calendar');
+        }
+
+        function deleteAppointments() {
+            showModal(
+                'Borrar TODAS las Citas', 
+                '¿Estás seguro de que quieres borrar **TODAS** las citas agendadas? Esta acción es irreversible.', 
+                true, 
+                () => {
+                    appointments = []; 
+                    saveAppointments([]); 
+                    showModal('Éxito', 'Todas las citas han sido borradas exitosamente.', false);
+                    setView('home');
+                }
+            );
+        }
+
+        // Resto de las funciones de renderizado (renderCalendar, showDayDetails, renderScheduleForm, etc.) 
+        // permanecen igual que en la versión anterior.
         
         function renderCalendar() {
             const date = currentCalendarDate;
@@ -390,7 +572,6 @@
                 daysHtml += '<div class="day-cell bg-secondary-dark/50 disabled"></div>';
             }
 
-            // Usamos las citas cargadas (que ya están filtradas por el historial)
             const occupiedDates = new Set(
                 appointments
                     .filter(apt => new Date(apt.dateTime).getMonth() === month && new Date(apt.dateTime).getFullYear() === year)
@@ -416,7 +597,6 @@
                 if (isPastDay) {
                      classes = 'bg-primary-dark/50 text-gray-500 hover:bg-primary-dark/70';
                      if (isOccupied) {
-                          // Mantener el punto verde si la cita está dentro del historial de 2 meses
                           classes = 'bg-secondary-dark/80 text-gray-300 border border-occupied-day/50 hover:bg-secondary-dark';
                      }
                 }
@@ -574,6 +754,7 @@
                 addAppointment(dateStr, timeInput);
             });
         }
+
 
         // =======================================================
         // INICIO DE LA APLICACIÓN
