@@ -7,39 +7,68 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
+        /* Estilos personalizados */
         :root {
-            --primary-dark: #1f2937;
-            --secondary-dark: #374151;
-            --accent: #ef4444;
-            --occupied-day: #10b981;
+            --primary-dark: #1f2937; /* Gray-800 */
+            --secondary-dark: #374151; /* Gray-700 */
+            --accent: #ef4444; /* Red-500 */
+            --occupied-day: #10b981; /* Emerald-500 */
         }
         body {
             background-color: var(--primary-dark);
         }
-        .container { max-width: 900px; margin: 0 auto; padding: 2rem; }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
         .view-container {
             background-color: var(--secondary-dark);
             padding: 1.5rem;
             border-radius: 0.75rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
         .day-cell {
             background-color: var(--secondary-dark);
             height: 80px;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            border-radius: 0.375rem; cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            position: relative;
             transition: background-color 0.15s;
         }
         .day-name {
-            height: 30px; background-color: var(--primary-dark);
-            color: var(--accent); cursor: default;
+            height: 30px;
+            background-color: var(--primary-dark);
+            color: var(--accent);
+            cursor: default;
         }
-        .day-cell.disabled { cursor: not-allowed; background-color: var(--primary-dark); }
-        .occupied-dot { width: 8px; height: 8px; background-color: var(--occupied-day); border-radius: 50%; margin-top: 4px; }
-        .btn-primary { background-color: var(--accent); transition: background-color 0.15s; }
-        .btn-primary:hover { background-color: #dc2626; }
+        .day-cell.disabled {
+            cursor: not-allowed;
+            background-color: var(--primary-dark);
+        }
+        .occupied-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--occupied-day);
+            border-radius: 50%;
+            margin-top: 4px;
+        }
+        .btn-primary {
+            background-color: var(--accent);
+            transition: background-color 0.15s;
+        }
+        .btn-primary:hover {
+            background-color: #dc2626; /* Red-600 */
+        }
     </style>
 </head>
 <body>
@@ -49,15 +78,18 @@
         </header>
         
         <nav class="flex justify-center space-x-4 mb-6 p-3 bg-gray-800 rounded-lg">
-            <button onclick="setView('home')" class="text-white hover:text-accent font-semibold py-2 px-4 rounded transition duration-200">
+            <button onclick="setView('home')" 
+                    class="text-white hover:text-accent font-semibold py-2 px-4 rounded transition duration-200">
                 <i class="fas fa-home mr-1"></i> Inicio
             </button>
-            <button onclick="setView('calendar')" class="text-white hover:text-accent font-semibold py-2 px-4 rounded transition duration-200">
+            <button onclick="setView('calendar')" 
+                    class="text-white hover:text-accent font-semibold py-2 px-4 rounded transition duration-200">
                 <i class="fas fa-calendar-alt mr-1"></i> Calendario
             </button>
         </nav>
 
-        <div id="viewContainer" class="view-container"></div>
+        <div id="viewContainer" class="view-container">
+            </div>
 
         <div id="modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center hidden z-50" onclick="hideModal()">
             <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full" onclick="event.stopPropagation()">
@@ -65,7 +97,7 @@
                 <p id="modalMessage" class="mb-6 text-gray-600"></p>
                 <div id="modalActions" class="flex justify-end space-x-3">
                     <button id="modalCloseButton" onclick="hideModal()" class="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition duration-150">Cerrar</button>
-                </div>
+                    </div>
             </div>
         </div>
     </div>
@@ -82,165 +114,460 @@
         const modalMessage = document.getElementById('modalMessage');
         const modalActions = document.getElementById('modalActions');
 
-        // ======= UTILIDADES =======
+        // =======================================================
+        // UTILIDADES Y FORMATO
+        // =======================================================
+
         function formatDateOnly(dateTimeStr) {
             const date = new Date(dateTimeStr);
-            return date.toISOString().substring(0, 10);
+            return date.toISOString().substring(0, 10); // YYYY-MM-DD
         }
+        
         function formatDateTimeDisplay(dateTimeStr) {
             const date = new Date(dateTimeStr);
-            const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
+            const options = { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                hour12: true 
+            };
             return date.toLocaleDateString('es-ES', options);
         }
+
         function showModal(title, message, isError = false, confirmationCallback = null) {
             modalTitle.textContent = title;
             modalMessage.textContent = message;
+            
             modalActions.innerHTML = '';
+
             if (confirmationCallback) {
                 const confirmBtn = document.createElement('button');
                 confirmBtn.className = 'px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition duration-150';
                 confirmBtn.textContent = 'Confirmar';
-                confirmBtn.onclick = () => { confirmationCallback(); hideModal(); };
+                confirmBtn.onclick = () => {
+                    confirmationCallback();
+                    hideModal();
+                };
                 modalActions.appendChild(confirmBtn);
             }
+            
             const closeBtn = document.createElement('button');
             closeBtn.id = 'modalCloseButton';
             closeBtn.className = 'px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition duration-150';
             closeBtn.textContent = confirmationCallback ? 'Cancelar' : 'Cerrar';
             closeBtn.onclick = hideModal;
             modalActions.appendChild(closeBtn);
+
             modal.classList.remove('hidden');
             modal.classList.add('flex');
         }
+
         function hideModal() {
             modal.classList.remove('flex');
             modal.classList.add('hidden');
         }
 
-        // ======= LOCAL STORAGE =======
+        // =======================================================
+        // GESTIÓN DE LOCALSTORAGE (VERSIÓN ORIGINAL PERO CON LIMPIEZA)
+        // =======================================================
+
         function saveAppointments(apts) {
-            const data = { appointments: apts, lastSaveTimestamp: Date.now() };
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            const data = {
+                appointments: apts,
+                lastSaveTimestamp: Date.now() 
+            };
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (error) {
+                console.error('Error al guardar en localStorage:', error);
+                showModal('Error al guardar datos. El almacenamiento podría estar lleno o desactivado.', true);
+            }
         }
 
         function loadAppointments() {
-            const storedData = localStorage.getItem(STORAGE_KEY);
-            if (!storedData) return [];
-            const data = JSON.parse(storedData);
-            
-            // 🔹 Eliminar citas con más de 4 meses
-            const now = new Date();
-            const fourMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 4, now.getDate());
-            const filtered = data.appointments.filter(apt => new Date(apt.dateTime) >= fourMonthsAgo);
-            
-            if (filtered.length !== data.appointments.length) {
-                saveAppointments(filtered);
-            }
+            try {
+                const storedData = localStorage.getItem(STORAGE_KEY);
+                if (!storedData) {
+                    // inicializa con objeto que contiene appointments (manteniendo la estructura original)
+                    saveAppointments([]);
+                    return [];
+                }
+                
+                const data = JSON.parse(storedData);
 
-            return filtered.sort((a,b)=>new Date(a.dateTime)-new Date(b.dateTime));
+                // === NUEVO: eliminar citas con más de 4 meses de antigüedad ===
+                const now = new Date();
+                const fourMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 4, now.getDate());
+                const originalAppointments = Array.isArray(data.appointments) ? data.appointments : [];
+                const filtered = originalAppointments.filter(apt => {
+                    const aptDate = new Date(apt.dateTime);
+                    return aptDate >= fourMonthsAgo;
+                });
+
+                // Si hubo limpieza, guardamos la versión limpia manteniendo la estructura
+                if (filtered.length !== originalAppointments.length) {
+                    saveAppointments(filtered);
+                }
+
+                // Mantener el comportamiento original: devolver array ordenado
+                return filtered.sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
+
+            } catch (error) {
+                console.error('Error al cargar o analizar localStorage:', error);
+                showModal('Error al cargar datos. Los datos de citas podrían estar corruptos.', true);
+                return [];
+            }
         }
 
-        // ======= LÓGICA DE CITAS =======
+        // =======================================================
+        // LÓGICA DE CITAS (ORIGINAL, ADAPTADA)
+        // =======================================================
+
         function addAppointment(dateStr, timeStr) {
+            // Construir ISO local sin manipular zona horaria inesperadamente
             const dateTimeStr = `${dateStr}T${timeStr}:00`;
             const newAppointmentDate = new Date(dateTimeStr);
             const now = new Date();
-
+            
             if (newAppointmentDate <= now) {
-                showModal('Error', 'No se puede agendar en el pasado.', true);
+                showModal('Error al Agendar', 'No se puede agendar una cita en el pasado o a una hora ya transcurrida.', true);
                 return;
             }
 
-            // 🔹 Validar disponibilidad solo dentro del mismo día
-            const sameDayAppointments = appointments.filter(a => formatDateOnly(a.dateTime) === dateStr);
-            const isAvailable = sameDayAppointments.every(a => {
-                const existing = new Date(a.dateTime);
-                const diff = Math.abs(existing - newAppointmentDate);
-                return diff >= 30 * 60 * 1000;
+            // === NUEVO: Validación solo para el MISMO DÍA ===
+            // Evitar duplicados/solapamientos aplicando el mínimo de 30 minutos
+            const sameDayAppointments = appointments.filter(apt => formatDateOnly(apt.dateTime) === dateStr);
+
+            const isAvailable = sameDayAppointments.every(apt => {
+                const existingDate = new Date(apt.dateTime);
+                const diff = Math.abs(newAppointmentDate.getTime() - existingDate.getTime());
+                return diff >= (30 * 60 * 1000); // 30 minutos en ms
             });
 
             if (!isAvailable) {
-                showModal('Error', 'Ya existe una cita muy cercana en este día (mínimo 30 min).', true);
+                showModal('Error al Agendar', 'Ya existe una cita muy cercana en este día. Intervalo mínimo de 30 minutos.', true);
                 return;
             }
 
-            appointments.push({ id: Date.now(), dateTime: newAppointmentDate.toISOString() });
+            const newAppointment = {
+                id: Date.now(), 
+                dateTime: newAppointmentDate.toISOString(), 
+            };
+
+            appointments.push(newAppointment);
             saveAppointments(appointments);
-            showModal('Cita Agendada', `Cita para el ${formatDateTimeDisplay(newAppointmentDate.toISOString())}.`);
-            setView('calendar');
+            
+            showModal('Cita Agendada', `Tu cita ha sido agendada para el ${formatDateTimeDisplay(newAppointment.dateTime)}.`, false);
+            
+            setView('calendar'); 
         }
 
-        // ======= RESTO IGUAL =======
         function cancelAppointment(id) {
-            appointments = appointments.filter(apt => apt.id !== id);
-            saveAppointments(appointments);
-            showModal('Cita Cancelada', 'La cita fue eliminada.');
+            const appointmentId = Number(id); 
+            const originalLength = appointments.length;
+            appointments = appointments.filter(apt => apt.id !== appointmentId);
+            
+            if (appointments.length < originalLength) {
+                saveAppointments(appointments);
+                showModal('Cita Cancelada', 'La cita ha sido cancelada exitosamente.', false);
+                setView('calendar'); 
+            } else {
+                showModal('Error al Cancelar', 'No se encontró la cita a cancelar.', true);
+            }
+        }
+
+        // =======================================================
+        // FUNCIONES DE MENÚ PRINCIPAL (RESTAURADAS)
+        // =======================================================
+
+        function scheduleWithVoice() {
+            // Lógica de dictado: solo muestra un mensaje, ya que el código de voz es avanzado.
+            showModal('Agendar con Dictado 🎤', 'Esta función requiere implementar la API de Reconocimiento de Voz. Se continuará en el modo de formulario manual.', false);
+            setView('calendar'); // Redirige al calendario para agendar manualmente.
+        }
+
+        function viewAppointments() {
+             // Redirige directamente al calendario, ya que la vista de "Ver Citas" se realiza allí.
             setView('calendar');
         }
 
-        function scheduleWithVoice() { showModal('Dictado no disponible', 'Función en desarrollo.'); setView('calendar'); }
-        function viewAppointments() { setView('calendar'); }
         function deleteAppointments() {
-            showModal('Borrar Citas','¿Seguro que deseas borrar TODAS?',true,()=>{appointments=[];saveAppointments([]);showModal('Hecho','Todas las citas fueron borradas.');setView('home');});
+            // Lógica simple para mostrar el botón de borrado de todas las citas.
+            showModal(
+                'Borrar Citas', 
+                '¿Estás seguro de que quieres borrar **TODAS** las citas agendadas? Esta acción es irreversible.', 
+                true, 
+                () => {
+                    appointments = []; // Vacía el array
+                    saveAppointments([]); // Guarda el array vacío en localStorage
+                    showModal('Éxito', 'Todas las citas han sido borradas exitosamente.', false);
+                    setView('home');
+                }
+            );
+        }
+        
+        // =======================================================
+        // VISTAS Y RENDERIZADO
+        // =======================================================
+
+        function setView(viewName, data = null) {
+            currentView = viewName;
+            switch (viewName) {
+                case 'home':
+                    renderHome();
+                    break;
+                case 'calendar':
+                    renderCalendar();
+                    break;
+                case 'dayDetails':
+                    showDayDetails(data); 
+                    break;
+                case 'schedule':
+                    renderScheduleForm(data); 
+                    break;
+                default:
+                    renderHome();
+            }
         }
 
-        // ======= VISTAS =======
-        function setView(v,data=null){
-            if(v==='home') renderHome();
-            else if(v==='calendar') renderCalendar();
-            else if(v==='dayDetails') showDayDetails(data);
-            else if(v==='schedule') renderScheduleForm(data);
-        }
-
-        function renderHome(){
-            viewContainer.innerHTML=`
+        /** Renderiza la vista de Inicio con los tres botones solicitados. */
+        function renderHome() {
+            viewContainer.innerHTML = `
                 <h2 class="text-2xl font-bold text-white mb-6">Selecciona una opción:</h2>
                 <div class="space-y-4">
-                    <button onclick="scheduleWithVoice()" class="w-full btn-primary text-white font-semibold py-4 px-6 rounded-lg shadow-md flex items-center justify-center">
+                    <button onclick="scheduleWithVoice()"
+                        class="w-full btn-primary text-white font-semibold py-4 px-6 rounded-lg shadow-md flex items-center justify-center">
                         <i class="fas fa-microphone-alt mr-3"></i> Agendar Cita con Dictado
                     </button>
-                    <button onclick="viewAppointments()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-lg shadow-md flex items-center justify-center">
+                    <button onclick="viewAppointments()"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-lg shadow-md flex items-center justify-center transition duration-300">
                         <i class="fas fa-eye mr-3"></i> Ver Citas
                     </button>
-                    <button onclick="deleteAppointments()" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-4 px-6 rounded-lg shadow-md flex items-center justify-center">
+                    <button onclick="deleteAppointments()"
+                        class="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-4 px-6 rounded-lg shadow-md flex items-center justify-center transition duration-300">
                         <i class="fas fa-trash-alt mr-3"></i> Borrar Citas (Todas)
                     </button>
                 </div>
+                <p class="text-gray-400 text-sm mt-6 text-center">Para agendar manualmente, usa la opción "Ver Citas" e ingresa al Calendario.</p>
+            `;
+        }
+        
+        function renderCalendar() {
+            const date = currentCalendarDate;
+            const year = date.getFullYear();
+            const month = date.getMonth(); 
+            const firstDayOfMonth = new Date(year, month, 1);
+            let startingDay = firstDayOfMonth.getDay(); 
+            startingDay = startingDay === 0 ? 6 : startingDay - 1; 
+
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+            let daysHtml = '';
+
+            daysHtml += dayNames.map(day => `<div class="day-cell day-name text-xs font-bold text-accent">${day}</div>`).join('');
+
+            for (let i = 0; i < startingDay; i++) {
+                daysHtml += '<div class="day-cell bg-secondary-dark/50 disabled"></div>';
+            }
+
+            const occupiedDates = new Set(
+                appointments
+                    .filter(apt => new Date(apt.dateTime).getMonth() === month && new Date(apt.dateTime).getFullYear() === year)
+                    .map(apt => String(new Date(apt.dateTime).getDate()).padStart(2, '0'))
+            );
+            
+            const today = new Date();
+            const todayDateOnly = String(today.getDate()).padStart(2, '0');
+            const currentMonthYear = `${year}-${String(month + 1).padStart(2, '0')}`;
+            const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate()); 
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayStr = String(day).padStart(2, '0');
+                const fullDateString = `${currentMonthYear}-${dayStr}`;
+                const isOccupied = occupiedDates.has(dayStr);
+                const isToday = dayStr === todayDateOnly && today.getMonth() === month && today.getFullYear() === year;
+
+                const dayInCalendar = new Date(year, month, day);
+                let isPastDay = dayInCalendar < todayMidnight;
+                
+                let classes = isToday ? 'bg-accent/30 border border-accent text-white' : 'bg-secondary-dark text-gray-300';
+                
+                if (isPastDay) {
+                     classes = 'bg-primary-dark/50 text-gray-500 hover:bg-primary-dark/70';
+                     if (isOccupied) {
+                          classes = 'bg-secondary-dark/80 text-gray-300 border border-occupied-day/50 hover:bg-secondary-dark';
+                     }
+                }
+
+                daysHtml += `
+                    <div class="day-cell ${classes} transition duration-150" 
+                         onclick="showDayDetails('${fullDateString}')">
+                        <span class="text-sm font-semibold">${day}</span>
+                        ${isOccupied ? '<div class="occupied-dot"></div>' : ''}
+                    </div>
+                `;
+            }
+
+            viewContainer.innerHTML = `
+                <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
+                    <i class="fas fa-calendar-alt mr-2 text-accent"></i> Calendario de Citas
+                </h2>
+
+                <div class="flex justify-between items-center mb-4 bg-gray-800 p-3 rounded-lg border border-gray-700">
+                    <button onclick="changeMonth(-1)" class="text-white hover:text-accent transition duration-150 p-2">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <h3 class="text-xl font-bold text-white">${monthNames[month]} ${year}</h3>
+                    <button onclick="changeMonth(1)" class="text-white hover:text-accent transition duration-150 p-2">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+
+                <div class="calendar-grid">
+                    ${daysHtml}
+                </div>
+
+                <div class="mt-6 flex items-center text-sm text-gray-400 space-x-4">
+                    <div class="flex items-center"><div class="occupied-dot mr-2 bg-occupied-day"></div> Cita(s) Agendada(s)</div>
+                    <div class="flex items-center"><div class="w-3 h-3 bg-accent/30 border border-accent rounded-full mr-2"></div> Hoy</div>
+                    <div class="flex items-center"><div class="w-3 h-3 bg-primary-dark/50 rounded-full mr-2"></div> Historial (Pasado)</div>
+                </div>
+
+                <button onclick="setView('home')"
+                    class="mt-6 w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
+                    <i class="fas fa-arrow-left mr-2"></i> Volver al Inicio
+                </button>
             `;
         }
 
-        // resto de tu código idéntico excepto el horario:
-        function renderScheduleForm(dateStr){
-            const date=new Date(dateStr);
-            const formattedDate=date.toLocaleDateString('es-ES',{year:'numeric',month:'long',day:'numeric'});
-            viewContainer.innerHTML=`
+        function changeMonth(step) {
+            currentCalendarDate = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() + step, 1);
+            renderCalendar();
+        }
+
+        function showDayDetails(dateStr) {
+            const selectedDate = new Date(dateStr);
+            const todayMidnight = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+            const isPastDay = selectedDate < todayMidnight; 
+
+            const dayAppointments = appointments
+                .filter(apt => formatDateOnly(apt.dateTime) === dateStr)
+                .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
+
+            let appointmentsHtml = '';
+            
+            if (dayAppointments.length > 0) {
+                appointmentsHtml = dayAppointments.map(apt => {
+                    const aptTime = new Date(apt.dateTime);
+                    const isPassed = aptTime < new Date(); 
+                    
+                    const timeDisplay = aptTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+                    let itemClasses = isPassed ? 'bg-red-900/40 text-gray-400 border-red-700/50' : 'bg-green-800/40 text-white border-green-600/50';
+                    let statusText = isPassed ? '<span class="text-xs text-red-500">(Pasada)</span>' : '';
+                    
+                    return `
+                        <li class="p-3 rounded-lg flex justify-between items-center ${itemClasses} border">
+                            <div>
+                                <strong class="text-xl">${timeDisplay}</strong> ${statusText}
+                            </div>
+                            ${!isPassed ? `<button onclick="confirmCancel(${apt.id})" 
+                                class="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition duration-150">
+                                <i class="fas fa-times-circle mr-1"></i> Cancelar
+                            </button>` : ''}
+                        </li>
+                    `;
+                }).join('');
+            } else {
+                appointmentsHtml = '<p class="text-gray-400 italic">No hay citas agendadas para este día.</p>';
+            }
+
+            viewContainer.innerHTML = `
+                <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
+                    <i class="fas fa-info-circle mr-2 text-accent"></i> Citas para el <span class="text-accent ml-2">${selectedDate.toLocaleDateString('es-ES', { dateStyle: 'full' })}</span>
+                </h2>
+                
+                <h3 class="text-xl font-semibold text-gray-300 mb-3">Detalle de Citas:</h3>
+                <ul class="space-y-3 mb-6">
+                    ${appointmentsHtml}
+                </ul>
+
+                ${!isPastDay ? 
+                    `<button onclick="setView('schedule', '${dateStr}')"
+                        class="w-full btn-primary text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-300 mb-3">
+                        <i class="fas fa-plus-circle mr-2"></i> Agendar Nueva Cita
+                    </button>` : 
+                    `<p class="p-3 bg-gray-700/50 text-gray-400 rounded-lg text-center"><i class="fas fa-history mr-2"></i> Solo se pueden ver citas pasadas, no agendar.</p>`
+                }
+                
+                <button onclick="setView('calendar')"
+                    class="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-300">
+                    <i class="fas fa-arrow-left mr-2"></i> Volver al Calendario
+                </button>
+            `;
+        }
+
+        function confirmCancel(id) {
+            showModal(
+                'Confirmar Cancelación', 
+                '¿Estás seguro de que deseas cancelar esta cita? Esta acción es irreversible.', 
+                true, 
+                () => cancelAppointment(id) 
+            );
+        }
+
+        function renderScheduleForm(dateStr) {
+            const date = new Date(dateStr);
+            const formattedDate = date.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+
+            viewContainer.innerHTML = `
                 <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
                     <i class="fas fa-calendar-plus mr-2 text-accent"></i> Agendar Cita para el <span class="text-accent ml-2">${formattedDate}</span>
                 </h2>
+                
                 <form id="scheduleForm" class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-2">Hora de la Cita:</label>
-                        <input type="time" id="timeInput" required min="06:00" max="20:00" step="1800"
-                            class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-accent focus:border-accent"
-                            value="09:00">
-                        <p class="text-xs text-gray-400 mt-1">Horario de 6:00 AM a 8:00 PM, intervalos de 30 minutos.</p>
+                        <label for="timeInput" class="block text-sm font-medium text-gray-300 mb-2">Hora de la Cita:</label>
+                        <!-- === CAMBIO: permitir mañana y tarde 06:00 - 21:00 === -->
+                        <input type="time" id="timeInput" name="time" required 
+                               min="06:00" max="21:00" step="1800" 
+                               class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-accent focus:border-accent"
+                               value="09:00">
+                        <p class="text-xs text-gray-400 mt-1">Horario de 6:00 AM a 9:00 PM. Los intervalos son de 30 minutos.</p>
                     </div>
-                    <button type="submit" class="w-full btn-primary text-white font-semibold py-3 px-4 rounded-lg shadow-md">
+
+                    <button type="submit" class="w-full btn-primary text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-300">
                         <i class="fas fa-check-circle mr-2"></i> Confirmar Cita
                     </button>
                 </form>
-                <button onclick="setView('dayDetails','${dateStr}')" class="mt-4 w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-4 rounded-lg">
+
+                <button onclick="setView('dayDetails', '${dateStr}')"
+                    class="mt-4 w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-300">
                     <i class="fas fa-arrow-left mr-2"></i> Volver
-                </button>`;
-            document.getElementById('scheduleForm').addEventListener('submit',e=>{
+                </button>
+            `;
+
+            document.getElementById('scheduleForm').addEventListener('submit', function(e) {
                 e.preventDefault();
-                const time=document.getElementById('timeInput').value;
-                addAppointment(dateStr,time);
+                const timeInput = document.getElementById('timeInput').value;
+                addAppointment(dateStr, timeInput);
             });
         }
 
-        function init(){ appointments=loadAppointments(); setView('home'); }
-        document.addEventListener('DOMContentLoaded',init);
+        // =======================================================
+        // INICIO DE LA APLICACIÓN
+        // =======================================================
+
+        function init() {
+            appointments = loadAppointments();
+            setView('home');
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
