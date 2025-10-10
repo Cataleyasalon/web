@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Citas - Historial Limitado y Horario Local</title>
+    <title>Sistema de Citas - Completo y Corregido</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -76,7 +76,17 @@
         <header class="text-center mb-6 p-4 bg-secondary-dark rounded-lg">
             <h1 class="text-4xl font-extrabold text-white">Gestor de Citas <i class="fas fa-clock text-accent ml-2"></i></h1>
         </header>
-
+        
+        <nav class="flex justify-center space-x-4 mb-6 p-3 bg-gray-800 rounded-lg">
+            <button onclick="setView('home')" 
+                    class="text-white hover:text-accent font-semibold py-2 px-4 rounded transition duration-200">
+                <i class="fas fa-home mr-1"></i> Inicio
+            </button>
+            <button onclick="setView('calendar')" 
+                    class="text-white hover:text-accent font-semibold py-2 px-4 rounded transition duration-200">
+                <i class="fas fa-calendar-alt mr-1"></i> Calendario
+            </button>
+            </nav>
         <div id="viewContainer" class="view-container">
             </div>
 
@@ -109,7 +119,6 @@
 
         function formatDateOnly(dateTimeStr) {
             const date = new Date(dateTimeStr);
-            // Si la cita fue creada correctamente con la hora local, esta línea es segura.
             return date.toISOString().substring(0, 10); // YYYY-MM-DD
         }
         
@@ -123,7 +132,6 @@
                 minute: '2-digit', 
                 hour12: true 
             };
-            // toLocaleDateString() automáticamente usa la zona horaria local, lo cual es correcto.
             return date.toLocaleDateString('es-ES', options);
         }
 
@@ -161,7 +169,7 @@
         }
 
         // =======================================================
-        // GESTIÓN DE LOCALSTORAGE - RETENCIÓN DE 2 MESES
+        // GESTIÓN DE LOCALSTORAGE - HISTORIAL LIMITADO
         // =======================================================
 
         function saveAppointments(apts) {
@@ -178,8 +186,7 @@
         }
 
         /**
-         * Carga las citas y elimina automáticamente aquellas con más de 2 meses de antigüedad.
-         * Mantiene el registro histórico de los últimos 3 meses (actual + 2 anteriores).
+         * Carga las citas y elimina aquellas con más de 2 meses de antigüedad (Historial de 3 meses).
          */
         function loadAppointments() {
             try {
@@ -199,12 +206,11 @@
                 // 2. FILTRAR Y ELIMINAR CITAS ANTIGUAS
                 const validAppointments = data.appointments.filter(apt => {
                     const aptDate = new Date(apt.dateTime);
-                    // La cita es válida si es igual o posterior a la fecha límite
                     return aptDate >= cutoffDate;
                 });
                 
                 if (validAppointments.length !== data.appointments.length) {
-                    console.log(`Se eliminaron ${data.appointments.length - validAppointments.length} citas con más de 2 meses de antigüedad.`);
+                    console.log(`Se eliminaron ${data.appointments.length - validAppointments.length} citas históricas (más de 2 meses de antigüedad).`);
                     // 3. GUARDAR EL RESULTADO FILTRADO
                     saveAppointments(validAppointments);
                 }
@@ -220,29 +226,28 @@
         }
 
         // =======================================================
-        // LÓGICA DE CITAS - CORRECCIÓN DE ZONA HORARIA Y AM/PM
+        // LÓGICA DE CITAS - CORRECCIÓN AM/PM (ZONA HORARIA LOCAL)
         // =======================================================
 
         function addAppointment(dateStr, timeStr) {
-            // timeStr viene en formato HH:MM (24 horas, ej: 09:30 o 14:30)
+            // timeStr viene en formato HH:MM (24 horas)
             const [hourStr, minuteStr] = timeStr.split(':');
             const hour = parseInt(hourStr, 10);
             const minute = parseInt(minuteStr, 10);
             
             const [yearStr, monthStr, dayStr] = dateStr.split('-');
             const year = parseInt(yearStr, 10);
-            // JS Date.setMonth es base 0 (0=Enero), por lo que restamos 1 al mes
-            const month = parseInt(monthStr, 10) - 1; 
+            const month = parseInt(monthStr, 10) - 1; // Mes en JS es base 0
             const day = parseInt(dayStr, 10);
 
-            // *** CORRECCIÓN DE ZONA HORARIA: Crear la fecha en la zona horaria local. ***
-            // Esto resuelve el problema de las citas matutinas que se movían a la tarde.
+            // *** CORRECCIÓN CLAVE: Creamos la fecha en la zona horaria local. ***
+            // Esto evita que las citas de la mañana se desfasen a la tarde por UTC.
             const newAppointmentDate = new Date(year, month, day, hour, minute, 0, 0);
             const now = new Date();
             
             // Validación 1: No agendar en el pasado
             if (newAppointmentDate <= now) {
-                showModal('Error al Agendar', 'No se puede agendar una cita en el pasado.', true);
+                showModal('Error al Agendar', 'No se puede agendar una cita en el pasado o a una hora ya transcurrida.', true);
                 return;
             }
 
@@ -250,19 +255,17 @@
             const isAvailable = appointments.every(apt => {
                 const existingDate = new Date(apt.dateTime);
                 const diff = Math.abs(newAppointmentDate.getTime() - existingDate.getTime());
-                // Asegurar que haya al menos 30 minutos de diferencia (1800000 milisegundos)
                 return diff >= (30 * 60 * 1000); 
             });
 
             if (!isAvailable) {
-                showModal('Error al Agendar', 'Ya existe una cita muy cercana a esta hora. Por favor, elige un intervalo de 30 minutos.', true);
+                showModal('Error al Agendar', 'Ya existe una cita muy cercana a esta hora. Intervalo mínimo de 30 minutos.', true);
                 return;
             }
 
             // Agendar la cita
             const newAppointment = {
                 id: Date.now(), 
-                // Se guarda en formato ISO, pero la hora ya es local, conservando la hora de la mañana/tarde.
                 dateTime: newAppointmentDate.toISOString(), 
             };
 
@@ -282,20 +285,14 @@
             if (appointments.length < originalLength) {
                 saveAppointments(appointments);
                 showModal('Cita Cancelada', 'La cita ha sido cancelada exitosamente.', false);
-                // Volver a cargar la vista actual después de cancelar
-                if (currentView === 'dayDetails') {
-                     // Si estabas en detalles, regresa al calendario para refrescar.
-                     setView('calendar');
-                } else {
-                     setView(currentView);
-                }
+                setView('calendar'); 
             } else {
                 showModal('Error al Cancelar', 'No se encontró la cita a cancelar.', true);
             }
         }
 
         // =======================================================
-        // VISTAS Y RENDERIZADO
+        // VISTAS Y RENDERIZADO (Funciones de Menú Restauradas)
         // =======================================================
 
         function setView(viewName, data = null) {
@@ -318,6 +315,7 @@
             }
         }
 
+        /** Renderiza la vista de Inicio */
         function renderHome() {
             viewContainer.innerHTML = `
                 <h2 class="text-2xl font-bold text-white mb-6">Selecciona una opción:</h2>
@@ -326,10 +324,11 @@
                         class="w-full btn-primary text-white font-semibold py-4 px-6 rounded-lg shadow-md flex items-center justify-center">
                         <i class="fas fa-calendar-alt mr-3"></i> Ver/Agendar Citas
                     </button>
-                </div>
+                    </div>
             `;
         }
         
+        /** Renderiza la vista de Calendario Mensual */
         function renderCalendar() {
             const date = currentCalendarDate;
             const year = date.getFullYear();
