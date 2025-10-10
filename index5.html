@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Citas - Menú de 3 Opciones Original</title>
+    <title>Sistema de Citas - Versión Corregida</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -104,6 +104,7 @@
 
     <script>
         const STORAGE_KEY = 'appointment_manager_data';
+        const HISTORY_MONTHS = 2; // Máximo 2 meses de citas pasadas
         let appointments = [];
         let currentCalendarDate = new Date();
         let currentView = 'home';
@@ -119,6 +120,7 @@
         // =======================================================
 
         function formatDateOnly(dateTimeStr) {
+            // Usa el Date object de JS para manejar el formato de la cita
             const date = new Date(dateTimeStr);
             return date.toISOString().substring(0, 10); // YYYY-MM-DD
         }
@@ -170,7 +172,7 @@
         }
 
         // =======================================================
-        // GESTIÓN DE LOCALSTORAGE (Versión Original/Simple)
+        // GESTIÓN DE LOCALSTORAGE - LÓGICA CORREGIDA
         // =======================================================
 
         function saveAppointments(apts) {
@@ -186,6 +188,10 @@
             }
         }
 
+        /**
+         * Carga las citas y limita el historial de citas pasadas a 2 meses.
+         * ESTA ES LA CORRECCIÓN CLAVE PARA LA LIMPIEZA DEL HISTORIAL.
+         */
         function loadAppointments() {
             try {
                 const storedData = localStorage.getItem(STORAGE_KEY);
@@ -195,9 +201,27 @@
                 }
                 
                 const data = JSON.parse(storedData);
+                let loadedAppointments = data.appointments;
                 
-                // Carga simple sin filtros automáticos de historial
-                return data.appointments.sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
+                // 1. Determinar el límite de tiempo de retención (2 meses atrás)
+                const limitDate = new Date();
+                limitDate.setMonth(limitDate.getMonth() - HISTORY_MONTHS);
+                // Establecer la hora a medianoche para que se incluyan citas de todo el día límite
+                limitDate.setHours(0, 0, 0, 0); 
+                
+                // 2. Filtrar y mantener solo las citas que son FUTURAS o dentro del límite de 2 meses
+                const validAppointments = loadedAppointments.filter(apt => {
+                    const aptDate = new Date(apt.dateTime);
+                    return aptDate >= limitDate;
+                });
+                
+                // 3. Si se eliminaron citas, guardamos el nuevo array para persistir la limpieza
+                if (validAppointments.length !== loadedAppointments.length) {
+                    console.log(`Se eliminaron ${loadedAppointments.length - validAppointments.length} citas que superaron el límite de ${HISTORY_MONTHS} meses de historial.`);
+                    saveAppointments(validAppointments);
+                }
+                
+                return validAppointments.sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
 
             } catch (error) {
                 console.error('Error al cargar o analizar localStorage:', error);
@@ -207,24 +231,30 @@
         }
 
         // =======================================================
-        // LÓGICA DE CITAS (Original/Simple)
+        // LÓGICA DE CITAS - LÓGICA CORREGIDA DE ZONA HORARIA
         // =======================================================
 
         function addAppointment(dateStr, timeStr) {
-            // Lógica original de registro (propensa a errores de UTC)
             const [hourStr, minuteStr] = timeStr.split(':');
             let hour = parseInt(hourStr, 10);
             const minute = parseInt(minuteStr, 10);
             
-            const dateTimeStr = `${dateStr}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
-            const newAppointmentDate = new Date(dateTimeStr);
+            // *** CORRECCIÓN CLAVE: Usar new Date(año, mes, día, hora, minuto) para forzar la fecha
+            // a la zona horaria local, evitando el error de desfase UTC (09:00 -> 00:00 del día anterior) ***
+            const [year, month, day] = dateStr.split('-').map(Number);
+            
+            // Creamos la fecha usando la hora local. Month es 0-indexado, por eso es (month - 1)
+            const newAppointmentDate = new Date(year, month - 1, day, hour, minute, 0, 0);
+            
             const now = new Date();
             
+            // Validación 1: No agendar en el pasado
             if (newAppointmentDate <= now) {
                 showModal('Error al Agendar', 'No se puede agendar una cita en el pasado o a una hora ya transcurrida.', true);
                 return;
             }
 
+            // Validación 2: Chequear disponibilidad (30 minutos)
             const isAvailable = appointments.every(apt => {
                 const existingDate = new Date(apt.dateTime);
                 const diff = Math.abs(newAppointmentDate.getTime() - existingDate.getTime());
@@ -236,6 +266,7 @@
                 return;
             }
 
+            // Agendar la cita. Convertimos a ISO string para guardar, pero sabemos que la hora local es correcta.
             const newAppointment = {
                 id: Date.now(), 
                 dateTime: newAppointmentDate.toISOString(), 
@@ -257,6 +288,7 @@
             if (appointments.length < originalLength) {
                 saveAppointments(appointments);
                 showModal('Cita Cancelada', 'La cita ha sido cancelada exitosamente.', false);
+                // Vuelve al calendario o a la vista de detalles del día para actualizar la lista.
                 setView('calendar'); 
             } else {
                 showModal('Error al Cancelar', 'No se encontró la cita a cancelar.', true);
@@ -264,7 +296,7 @@
         }
 
         // =======================================================
-        // FUNCIONES DE MENÚ PRINCIPAL (RESTAURADAS)
+        // FUNCIONES DE MENÚ PRINCIPAL
         // =======================================================
 
         function scheduleWithVoice() {
@@ -274,14 +306,14 @@
         }
 
         function viewAppointments() {
-             // Redirige directamente al calendario, ya que la vista de "Ver Citas" se realiza allí.
+             // Redirige directamente al calendario, que ahora está limitado por 2 meses de historial.
             setView('calendar');
         }
 
         function deleteAppointments() {
             // Lógica simple para mostrar el botón de borrado de todas las citas.
             showModal(
-                'Borrar Citas', 
+                'Borrar TODAS las Citas', 
                 '¿Estás seguro de que quieres borrar **TODAS** las citas agendadas? Esta acción es irreversible.', 
                 true, 
                 () => {
@@ -317,7 +349,6 @@
             }
         }
 
-        /** Renderiza la vista de Inicio con los tres botones solicitados. */
         function renderHome() {
             viewContainer.innerHTML = `
                 <h2 class="text-2xl font-bold text-white mb-6">Selecciona una opción:</h2>
@@ -359,6 +390,7 @@
                 daysHtml += '<div class="day-cell bg-secondary-dark/50 disabled"></div>';
             }
 
+            // Usamos las citas cargadas (que ya están filtradas por el historial)
             const occupiedDates = new Set(
                 appointments
                     .filter(apt => new Date(apt.dateTime).getMonth() === month && new Date(apt.dateTime).getFullYear() === year)
@@ -384,6 +416,7 @@
                 if (isPastDay) {
                      classes = 'bg-primary-dark/50 text-gray-500 hover:bg-primary-dark/70';
                      if (isOccupied) {
+                          // Mantener el punto verde si la cita está dentro del historial de 2 meses
                           classes = 'bg-secondary-dark/80 text-gray-300 border border-occupied-day/50 hover:bg-secondary-dark';
                      }
                 }
