@@ -41,13 +41,40 @@
             background-color: #161b22;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
         }
-        /* Estilos específicos del calendario y citas */
+        /* Estilos ESPECÍFICOS para la nueva cabecera con tu imagen */
+        #custom-header {
+            /* DEBES ASEGURARTE QUE cabecera.png ESTÉ EN LA MISMA CARPETA */
+            background-image: url('cabecera.png'); 
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            width: 100%;
+            height: 150px; /* Altura de la imagen */
+            border-radius: 0.75rem 0.75rem 0 0; /* Bordes redondeados en la parte superior */
+            margin-left: -2rem; /* Compensar padding de la tarjeta */
+            margin-right: -2rem;
+            margin-top: -2rem; 
+        }
+        @media (min-width: 640px) { /* Ajuste para pantallas pequeñas */
+            #custom-header {
+                margin-left: -2rem;
+                margin-right: -2rem;
+                margin-top: -2rem;
+            }
+        }
+        @media (min-width: 1024px) { /* Ajuste para pantallas grandes */
+            #custom-header {
+                margin-left: -2.5rem;
+                margin-right: -2.5rem;
+                margin-top: -2.5rem;
+            }
+        }
+
+        /* Estilos del calendario y citas */
         .appointment-item { border-left: 3px solid #a78bfa; }
         .appointment-item:hover { background-color: #2d3748; }
-
-        /* Estilo para el contenedor de un día de calendario */
         .calendar-day {
-            min-height: 100px; /* Asegura que la celda no se colapse */
+            min-height: 100px; 
             transition: all 0.2s;
         }
         .calendar-day.active-month {
@@ -58,8 +85,6 @@
             transform: scale(1.02);
             z-index: 10;
         }
-
-        /* Estilo minimalista para scrollbar */
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #1f2937; }
@@ -68,14 +93,13 @@
 </head>
 <body>
 
-    <div id="app" class="card p-6 sm:p-8 lg:p-10 w-full max-w-lg mx-4 rounded-xl transition-all duration-300">
+    <div id="app" class="card p-8 w-full max-w-lg mx-4 rounded-xl transition-all duration-300">
 
-        <div class="text-center mb-6">
-            <img src="/cabecera.png" alt="Logo de Cataleya" class="mx-auto h-16 w-auto mb-2 filter drop-shadow-xl shadow-violet-700/50">
-            <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-wider">
-                </h1>
+        <div class="text-center mb-0">
+            <div id="custom-header" class="mb-0">
+                </div>
+            <p class="text-center text-gray-400 mt-4 mb-8 text-sm sm:text-base">SISTEMA DE GESTIÓN DE CITAS</p>
         </div>
-        <p class="text-center text-gray-400 mb-8 text-sm sm:text-base">Sistema de Gestión de Citas</p>
 
         <div id="view-container">
             </div>
@@ -112,7 +136,6 @@
         // =======================================================
         const STORAGE_KEY = 'cataleya_appointments_data';
         let currentView = 'home';
-        // Variable para rastrear qué mes se está viendo en el calendario
         let currentCalendarDate = new Date(); 
         let appointments = [];
         let recognition = null;
@@ -121,7 +144,6 @@
             'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3, 'mayo': 4, 'junio': 5,
             'julio': 6, 'agosto': 7, 'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11
         };
-        const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
         const headerNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
         const viewContainer = document.getElementById('view-container');
@@ -222,7 +244,7 @@
         function changeMonth(offset) {
             const newDate = currentCalendarDate;
             newDate.setMonth(newDate.getMonth() + offset);
-            newDate.setDate(1); // Mantiene el día en 1 para evitar saltos de mes (ej. 31 de Ene a Mar)
+            newDate.setDate(1); 
             currentCalendarDate = newDate;
             renderCalendar();
         }
@@ -232,24 +254,20 @@
             const dayAppointments = appointments.filter(apt => apt.dateTime.startsWith(dateKey));
             
             const dateParts = dateKey.split('-');
-            // Reconstruye la fecha para el título, ya que dateKey es 'YYYY-MM-DD'
             const displayDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
 
             const title = `Citas para el ${displayDate}`;
             let content = '';
 
             if (dayAppointments.length > 0) {
-                 content = dayAppointments.map(apt => {
-                    const timeDisplay = formatTime(apt.dateTime);
-                    return `
-                        <div class="border-l-4 border-accent pl-3 py-2 bg-gray-800 rounded-lg flex justify-between items-center">
-                            <div>
-                                <p class="font-semibold text-white text-base">${apt.name}</p>
-                            </div>
-                            <p class="text-sm text-gray-400 font-mono">${timeDisplay}</p>
+                 content = dayAppointments.map(apt => `
+                    <div class="border-l-4 border-accent pl-3 py-2 bg-gray-800 rounded-lg flex justify-between items-center">
+                        <div>
+                            <p class="font-semibold text-white text-base">${apt.name}</p>
                         </div>
-                    `;
-                }).join('<div class="h-3"></div>');
+                        <p class="text-sm text-gray-400 font-mono">${formatTime(apt.dateTime)}</p>
+                    </div>
+                `).join('<div class="h-3"></div>');
             } else {
                 content = `<p class="text-white text-center py-4">¡Día libre! No hay citas agendadas.</p>`;
             }
@@ -266,7 +284,6 @@
 
         function setView(viewName) {
             currentView = viewName;
-            // Al entrar a la vista de calendario, asegura que muestre el mes actual
             if (viewName === 'calendar') {
                  currentCalendarDate = new Date();
                  currentCalendarDate.setDate(1);
@@ -301,22 +318,17 @@
         /** Renderiza la vista de Calendario en formato de cuadrícula mensual */
         function renderCalendar() {
             const today = new Date();
-            today.setHours(0, 0, 0, 0); // Normaliza el "hoy" para comparación
+            today.setHours(0, 0, 0, 0); 
 
-            // Obtiene el mes y año que estamos viendo
             const calendarMonth = currentCalendarDate.getMonth();
             const calendarYear = currentCalendarDate.getFullYear();
 
-            // 1. Encontrar el primer día del mes que estamos viendo
             const firstDayOfMonth = new Date(calendarYear, calendarMonth, 1);
-            // 2. Determinar qué día de la semana es (Lun=0, Dom=6)
             let startingDay = firstDayOfMonth.getDay();
             if (startingDay === 0) startingDay = 6; else startingDay--; 
 
-            // 3. Obtener el número de días en el mes
             const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
             
-            // 4. Agrupar las citas por día
             const appointmentsByDay = appointments.reduce((acc, apt) => {
                 const aptDate = new Date(apt.dateTime);
                 const dateKey = aptDate.toISOString().substring(0, 10);
@@ -329,5 +341,39 @@
             
             let daysHTML = '';
 
-            // 5. Rellenar los días vacíos del mes anterior (para que empiece el Lunes correcto)
-            const daysInPrevMonth = new Date(calendarYear, calendarMonth, 0
+            const daysInPrevMonth = new Date(calendarYear, calendarMonth, 0).getDate();
+            for (let i = 0; i < startingDay; i++) {
+                const dayNumber = daysInPrevMonth - startingDay + i + 1;
+                daysHTML += `
+                    <div class="calendar-day p-1 rounded-lg text-center text-gray-600 bg-day-other border border-gray-800 flex flex-col">
+                        <span class="text-sm font-light">${dayNumber}</span>
+                        <div class="flex-grow overflow-hidden text-xs"></div>
+                    </div>
+                `;
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const currentDate = new Date(calendarYear, calendarMonth, day);
+                const dateKey = currentDate.toISOString().substring(0, 10);
+                const dayAppointments = (appointmentsByDay[dateKey] || []).sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
+                
+                const isToday = today.toDateString() === currentDate.toDateString();
+                const hasAppointments = dayAppointments.length > 0;
+
+                let dayClass = 'bg-day-base border border-gray-700 active-month';
+                if (isToday) {
+                    dayClass = 'bg-day-current border-2 border-accent shadow-lg shadow-violet-700/20 active-month';
+                } else if (hasAppointments) {
+                     dayClass = 'bg-day-base border border-accent/70 active-month';
+                }
+
+                const appointmentsContent = dayAppointments.length > 0
+                    ? dayAppointments.slice(0, 2).map(apt => `
+                        <div class="appointment-item p-0.5 ml-1 mb-0.5 rounded-sm bg-gray-800 flex justify-between items-center">
+                            <p class="text-[10px] text-white truncate">${apt.name}</p>
+                            <p class="text-[9px] font-mono text-gray-400">${formatTime(apt.dateTime)}</p>
+                        </div>
+                    `).join('')
+                    : (isToday ? '<p class="text-[10px] text-gray-400 p-1">HOY - Vacío</p>' : '');
+                    
+                const moreAppointments = dayAppointments.length > 2 ? `<p class="text-[10px] text-gray-400 text-center mt-
