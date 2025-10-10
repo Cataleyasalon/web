@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cataleya - Sistema de Citas</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Configuración de Tailwind para usar 'Inter' y activar modo oscuro -->
     <script>
         tailwind.config = {
             theme: {
@@ -64,27 +63,18 @@
 </head>
 <body>
 
-    <!-- Contenedor principal responsive: ocupa todo el ancho en móvil, limitado en escritorio -->
     <div id="app" class="card p-6 sm:p-8 lg:p-10 w-full max-w-lg mx-4 rounded-xl transition-all duration-300">
 
-        <!-- Logo/Título (Mejorado para responsividad) -->
         <div class="text-center mb-6">
-            <!-- Placeholder para Logo de imagen: descomentar y reemplazar el URL si se usa un logo -->
-            <!-- <img src="URL_DEL_LOGO" alt="Logo Cataleya" class="mx-auto h-16 mb-4"> -->
             <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-wider">
-                <!-- El tamaño del ícono escala de 3xl a 4xl en pantallas medianas (md) -->
                 <i class="fas fa-scissors text-accent mr-2 text-3xl md:text-4xl"></i> Cataleya
             </h1>
         </div>
-        <!-- El tamaño de la fuente escala de sm a base en pantallas pequeñas/medianas -->
         <p class="text-center text-gray-400 mb-8 text-sm sm:text-base">Sistema de Gestión de Citas</p>
 
-        <!-- Contenedor Principal (Cambia de vista con JS) -->
         <div id="view-container">
-            <!-- El contenido de la vista se renderiza aquí -->
-        </div>
+            </div>
 
-        <!-- Modal para Mensajes (Reemplazo de alert()) -->
         <div id="message-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
             <div class="bg-secondary-dark p-6 rounded-lg max-w-sm w-full text-center border border-accent">
                 <p id="modal-text" class="text-white text-lg mb-4"></p>
@@ -94,7 +84,6 @@
             </div>
         </div>
 
-        <!-- Modal para Recordatorio Diario (10:00 PM) - Minimalista, Sombreado y Morado -->
         <div id="reminder-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-40">
             <div class="bg-secondary-dark p-6 rounded-xl max-w-sm w-full text-left border border-accent shadow-2xl shadow-violet-700/50 transform transition-all duration-300 scale-100">
                 <div class="flex justify-between items-center mb-4">
@@ -104,8 +93,7 @@
                     </button>
                 </div>
                 <div id="reminder-content" class="text-gray-300 space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                    <!-- Contenido de las citas del día siguiente -->
-                </div>
+                    </div>
                 <button onclick="closeReminderModal()" class="mt-4 w-full bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-lg transition duration-200">
                     Cerrar Recordatorio
                 </button>
