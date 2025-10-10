@@ -18,6 +18,9 @@
                         'accent': '#a78bfa', // Morado
                         'accent-hover': '#8b5cf6',
                         'cancel': '#f87171',
+                        'day-base': '#1f2937', // Fondo de día de calendario
+                        'day-current': '#374151', // Fondo de día actual
+                        'day-other': '#111827', // Fondo de días de otros meses
                     }
                 }
             }
@@ -39,9 +42,17 @@
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
         }
         /* Estilos específicos del calendario y citas */
-        .day-container { border: 1px solid #374151; }
         .appointment-item { border-left: 3px solid #a78bfa; }
         .appointment-item:hover { background-color: #2d3748; }
+
+        /* Estilo para el contenedor de un día de calendario */
+        .calendar-day {
+            min-height: 100px; /* Asegura que la celda no se colapse */
+            transition: all 0.2s;
+        }
+        .calendar-day:hover {
+            box-shadow: 0 0 10px rgba(167, 139, 250, 0.3);
+        }
 
         /* Estilo minimalista para scrollbar */
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
@@ -103,7 +114,8 @@
             'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3, 'mayo': 4, 'junio': 5,
             'julio': 6, 'agosto': 7, 'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11
         };
-        const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']; // Usado para funciones utilitarias
+        const headerNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']; // Usado para la cuadrícula
 
         const viewContainer = document.getElementById('view-container');
         const messageModal = document.getElementById('message-modal');
@@ -257,76 +269,109 @@
             `;
         }
 
-        /** Renderiza la vista de Calendario en formato de cuadrícula semanal */
+        /** Renderiza la vista de Calendario en formato de cuadrícula mensual */
         function renderCalendar() {
             const now = new Date();
-            // Encuentra el primer día de la semana (Lunes)
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); 
-            const startOfWeek = new Date(today);
-            // 0=Dom, 1=Lun. Ajusta para que Lun sea el primer día.
-            const dayOfWeek = today.getDay(); 
-            const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Si es Dom (0), retrocede 6. Si no, retrocede (día-1).
-            startOfWeek.setDate(today.getDate() - daysToSubtract);
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
 
-            // Agrupa las citas por día
+            // 1. Encontrar el primer día del mes actual (para saber dónde empezar la cuadrícula)
+            const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+            // 2. Determinar qué día de la semana es (0=Dom, 1=Lun...). Ajustado para Lunes = 0.
+            let startingDay = firstDayOfMonth.getDay();
+            if (startingDay === 0) startingDay = 6; else startingDay--; // Lunes = 0, Domingo = 6
+
+            // 3. Obtener el número de días en el mes
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            
+            // 4. Agrupar las citas por día
             const appointmentsByDay = appointments.reduce((acc, apt) => {
                 const aptDate = new Date(apt.dateTime);
                 const dateKey = aptDate.toISOString().substring(0, 10);
-                
                 if (!acc[dateKey]) { acc[dateKey] = []; }
                 acc[dateKey].push(apt);
                 return acc;
             }, {});
-            
-            // Obtiene el mes y año para el título
-            const monthYear = now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+
+            const monthYearTitle = now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
             
             let daysHTML = '';
-            const headerNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
-            // Generar la cuadrícula de 7 días
-            for (let i = 0; i < 7; i++) {
-                const currentDate = new Date(startOfWeek);
-                currentDate.setDate(startOfWeek.getDate() + i);
-                
+            // 5. Rellenar los días vacíos del mes anterior
+            const daysInPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
+            for (let i = 0; i < startingDay; i++) {
+                const dayNumber = daysInPrevMonth - startingDay + i + 1;
+                daysHTML += `
+                    <div class="calendar-day p-1 rounded-sm text-center text-gray-600 bg-day-other border border-gray-800 flex flex-col">
+                        <span class="text-sm font-light">${dayNumber}</span>
+                        <div class="flex-grow overflow-hidden text-xs"></div>
+                    </div>
+                `;
+            }
+
+            // 6. Generar los días del mes actual
+            for (let day = 1; day <= daysInMonth; day++) {
+                const currentDate = new Date(currentYear, currentMonth, day);
                 const dateKey = currentDate.toISOString().substring(0, 10);
                 const dayAppointments = (appointmentsByDay[dateKey] || []).sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
                 
                 const isToday = today.toDateString() === currentDate.toDateString();
-                
-                // Clases para el día actual
-                const dayClass = isToday ? 'bg-secondary-dark border-2 border-accent' : 'bg-primary-dark border border-gray-700';
-                const dateClass = isToday ? 'text-accent font-extrabold' : 'text-white font-semibold';
-                
+                const hasAppointments = dayAppointments.length > 0;
+
+                // Clases dinámicas
+                let dayClass = 'bg-day-base border border-gray-700';
+                if (isToday) {
+                    dayClass = 'bg-day-current border-2 border-accent shadow-lg shadow-violet-700/20';
+                } else if (hasAppointments) {
+                     dayClass = 'bg-day-base border border-accent/70';
+                }
+
                 const appointmentsContent = dayAppointments.length > 0
                     ? dayAppointments.map(apt => `
-                        <div class="appointment-item p-1 ml-1 mb-1 rounded-sm bg-gray-800 flex justify-between items-center transition duration-150">
-                            <p class="text-xs text-white truncate">${apt.name}</p>
-                            <p class="text-[10px] font-mono text-gray-400">${formatTime(apt.dateTime)}</p>
+                        <div class="appointment-item p-0.5 ml-1 mb-0.5 rounded-sm bg-gray-800 flex justify-between items-center">
+                            <p class="text-[10px] text-white truncate">${apt.name}</p>
+                            <p class="text-[9px] font-mono text-gray-400">${formatTime(apt.dateTime)}</p>
                         </div>
                     `).join('')
-                    : `<p class="text-xs text-gray-500 p-2 text-center">Vacío</p>`;
+                    : (isToday ? '<p class="text-[10px] text-gray-400 p-1">HOY - Vacío</p>' : '');
 
                 daysHTML += `
-                    <div class="${dayClass} p-2 rounded-lg flex flex-col h-48 overflow-hidden">
-                        <div class="text-center pb-2 ${dateClass}">
-                            ${headerNames[i]} <span class="text-sm">${currentDate.getDate()}</span>
-                        </div>
-                        <div class="flex-grow overflow-y-auto custom-scrollbar pr-1">
+                    <div class="calendar-day p-1 rounded-lg flex flex-col ${dayClass} cursor-default">
+                        <span class="text-sm ${isToday ? 'text-accent font-bold' : 'text-white font-semibold'} self-end">${day}</span>
+                        <div class="flex-grow overflow-y-auto custom-scrollbar">
                             ${appointmentsContent}
                         </div>
                     </div>
                 `;
             }
+            
+            // 7. Rellenar los días restantes del mes siguiente
+            const totalDaysRendered = startingDay + daysInMonth;
+            const remainingCells = 42 - totalDaysRendered; // 6 filas * 7 días
+            
+            for (let i = 1; i <= remainingCells && (totalDaysRendered + i) <= 42; i++) {
+                daysHTML += `
+                    <div class="calendar-day p-1 rounded-sm text-center text-gray-600 bg-day-other border border-gray-800 flex flex-col">
+                        <span class="text-sm font-light">${i}</span>
+                        <div class="flex-grow overflow-hidden text-xs"></div>
+                    </div>
+                `;
+            }
 
             viewContainer.innerHTML = `
-                <h2 class="text-2xl font-bold text-white mb-4 flex items-center justify-between">
-                    <span><i class="fas fa-calendar-alt mr-2 text-accent"></i> ${monthYear}</span>
-                    <span class="text-sm text-gray-400">Semana Actual</span>
+                <h2 class="text-2xl font-bold text-white mb-4 flex items-center justify-center">
+                    <i class="fas fa-calendar-alt mr-2 text-accent"></i> ${monthYearTitle.toUpperCase()}
                 </h2>
-                <div class="grid grid-cols-7 gap-1.5 md:gap-2">
+                
+                <div class="grid grid-cols-7 gap-1.5 text-xs font-bold text-center text-accent mb-2">
+                    ${headerNames.map(name => `<div>${name}</div>`).join('')}
+                </div>
+
+                <div class="grid grid-cols-7 gap-1.5 max-h-[60vh] overflow-y-auto custom-scrollbar p-1">
                     ${daysHTML}
                 </div>
+                
                 <button onclick="setView('home')"
                     class="mt-6 w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
                     <i class="fas fa-arrow-left mr-2"></i> Volver a Inicio
@@ -377,7 +422,6 @@
                 }
             } catch (e) {
                 console.error("Fallo crítico en renderView:", e);
-                // Fallback de emergencia si el renderizado falla
                 viewContainer.innerHTML = `<div class="text-center py-10"><p class="text-xl text-red-500 font-bold">¡ERROR! La aplicación ha fallado al cargar. (Ver consola)</p></div>`;
             }
         }
@@ -408,7 +452,6 @@
             const aptToCancel = appointments.find(apt => apt.id === id);
             if (!aptToCancel) { showModal('Error: Cita no encontrada.'); renderCancel(); return; }
             
-            // Lógica de cancelación
             appointments = appointments.filter(apt => apt.id !== id);
             saveAppointments(appointments);
             showModal(`La cita de ${aptToCancel.name} ha sido cancelada.`);
