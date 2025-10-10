@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-width=1.0">
     <title>Cataleya - Sistema de Citas</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -118,7 +118,7 @@
         let appointments = [];
         let recognition = null;
         
-        // Mapeo de meses en español a números de JS (0 = enero, 11 = diciembre)
+        // Mapeo de datos
         const monthMap = {
             'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3, 'mayo': 4, 'junio': 5,
             'julio': 6, 'agosto': 7, 'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11
@@ -290,11 +290,12 @@
             `;
         }
 
-        /** * *NUEVA VISTA:* Renderiza la vista de Calendario Semanal */
+        /** Renderiza la vista de Calendario Semanal */
         function renderCalendar() {
             const hasAppointments = appointments.length > 0;
             const now = new Date();
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            // Esto asegura que today sea la medianoche del día actual para comparaciones
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); 
 
             // Agrupa las citas por día
             const appointmentsByDay = appointments.reduce((acc, apt) => {
@@ -318,7 +319,8 @@
                 currentDate.setDate(today.getDate() + i);
                 
                 const dateKey = currentDate.toISOString().substring(0, 10);
-                const dayAppointments = appointmentsByDay[dateKey] || [];
+                // Ordenar las citas del día por hora
+                const dayAppointments = (appointmentsByDay[dateKey] || []).sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
                 
                 if (dayAppointments.length > 0) {
                     hasFutureAppointments = true;
@@ -402,6 +404,7 @@
             `;
         }
 
+        /** Función principal de renderizado */
         function renderView() {
             appointments = loadAppointments();
             if (recognition) {
@@ -478,12 +481,13 @@
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
 
+            // Renderiza la interfaz de "Escuchando"
             viewContainer.innerHTML = `
                 <div class="text-center p-6 bg-secondary-dark rounded-lg border border-accent">
                     <p class="text-xl font-semibold text-white mb-4">Escuchando...</p>
                     <i class="fas fa-microphone-alt animate-pulse text-5xl text-accent mb-4"></i>
                     <p class="text-gray-400">Di el nombre y la hora de la cita, por ejemplo:</p>
-                    <p class="text-sm font-mono text-gray-500">"Agendar a Juan Pérez el 10 de octubre a las 3 de la mañana"</p>
+                    <p class="text-sm font-mono text-gray-500">"Agendar a Juan Pérez el 10 de octubre a las 3 de la tarde"</p>
                     <button onclick="setView('home')"
                         class="mt-6 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
                         <i class="fas fa-stop mr-2"></i> Cancelar Dictado
@@ -528,113 +532,6 @@
         function processVoiceCommand(text) {
             const lowerText = text.toLowerCase();
             
-            // Regex más tolerante y mejorado
             const dateRegex = /(el\s+)?(\d{1,2})\s+(de|del)\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre).*?(a\s+(la|las)\s+)?(\d{1,2})(:\d{2})?\s*(de la mañana|am|de la tarde|pm|noche|madrugada)?/i;
             
-            const match = lowerText.match(dateRegex);
-
-            if (!match) {
-                showModal(`❌ No pude encontrar una fecha y hora clara en: "${text}". Por favor, intenta decir "el [día] de [mes] a las [hora] de la [mañana/tarde]".`);
-                setView('home');
-                return;
-            }
-
-            // Extracción de Nombre
-            const rawNamePart = text.substring(0, match.index).trim();
-            let name = rawNamePart.replace(/agendar (a|una cita a|para) /i, '').trim();
-            if (name === '') {
-                name = 'Cliente Sin Nombre';
-            }
-            
-            // Extracción de componentes
-            const day = parseInt(match[2]);
-            const monthName = match[4]; 
-            let hour = parseInt(match[7]);
-            const minutes = match[8] ? parseInt(match[8].substring(1)) : 0;
-            const period = match[9] || '';
-
-            const monthIndex = monthMap[monthName];
-            const now = new Date();
-            let currentYear = now.getFullYear();
-            
-            // APLICACIÓN DE HORARIO Y LÓGICA DE AÑO
-            const isPM = period.includes('tarde') || period.includes('pm') || period.includes('noche');
-            const isAM = period.includes('mañana') || period.includes('am') || period.includes('madrugada');
-
-            if (isPM && hour < 12) {
-                hour += 12; 
-            } else if ((isAM || period === '') && hour === 12) {
-                hour = 0;
-            }
-            
-            // Construcción manual del objeto Date
-            let aptDate = new Date(currentYear, monthIndex, day, hour, minutes, 0);
-
-            // Lógica de Año (Evita agendar en el pasado)
-            if (aptDate < now) {
-                 // Si el mes es anterior al actual, asumimos el próximo año.
-                 if (aptDate.getMonth() < now.getMonth()) {
-                     aptDate = new Date(currentYear + 1, monthIndex, day, hour, minutes, 0);
-                 } 
-                 // Si el mes es el mismo, pero el día/hora ya pasó, también asumimos el próximo año (menos común, pero seguro).
-                 else if (aptDate.getMonth() === now.getMonth() && aptDate.getTime() < now.getTime()) {
-                     aptDate = new Date(currentYear + 1, monthIndex, day, hour, minutes, 0);
-                 }
-            }
-
-            // Verificación de validez (Si el mes no coincide, la fecha es inválida)
-            if (isNaN(aptDate.getTime()) || aptDate.getMonth() !== monthIndex || aptDate.getDate() !== day) {
-                showModal(`❌ Error (Fecha Inválida): No pude crear la fecha ${day} de ${monthName}. Revisa el día o el mes.`);
-                setView('home');
-                return;
-            }
-            
-            // Doble chequeo final para evitar el pasado (ej. si agendó para "hoy a las 2 AM" y son las 3 PM)
-            if (aptDate < now) {
-                showModal('❌ Error: La hora y fecha especificadas ya han pasado. Por favor, especifica una hora futura.');
-                setView('home');
-                return;
-            }
-
-            // Confirmación antes de agendar
-            showModal(`✅ ¿Quieres agendar a ${name} para el ${formatDateTime(aptDate)}?`);
-
-            // Ejecuta el agendamiento después de una breve pausa
-            setTimeout(() => {
-                addAppointment(name, aptDate.toISOString());
-            }, 1000); 
-        }
-
-        // =======================================================
-        // GESTIÓN DE RECORDATORIO DIARIO (10:00 PM)
-        // =======================================================
-        
-        function getTomorrowDateString() {
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            return tomorrow.toISOString().substring(0, 10);
-        }
-
-        function checkAndScheduleDailyReminder() {
-            const now = new Date();
-            const targetHour = 22; // 10 PM
-            
-            if (now.getHours() >= targetHour) {
-                const todayDateString = now.toISOString().substring(0, 10);
-                const reminderShownKey = `reminder_shown_${todayDateString}`;
-                
-                if (localStorage.getItem(reminderShownKey) === 'true') {
-                    return; 
-                }
-
-                const tomorrowDateString = getTomorrowDateString();
-                const appointmentsTomorrow = appointments.filter(apt => 
-                    apt.dateTime.startsWith(tomorrowDateString)
-                );
-                
-                let title = '';
-                let content = '';
-
-                if (appointmentsTomorrow.length > 0) {
-                    title = `🔔 Citas para Mañana (${tomorrowDateString.split('-').reverse().join('/')})`;
-                    content
+            const
