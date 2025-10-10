@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Citas - Código Original (Vulnerable)</title>
+    <title>Sistema de Citas - Menú de 3 Opciones Original</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -170,7 +170,7 @@
         }
 
         // =======================================================
-        // GESTIÓN DE LOCALSTORAGE - ORIGINAL (SIN FILTRO/LIMPIEZA)
+        // GESTIÓN DE LOCALSTORAGE (Versión Original/Simple)
         // =======================================================
 
         function saveAppointments(apts) {
@@ -207,7 +207,7 @@
         }
 
         // =======================================================
-        // LÓGICA DE CITAS - ORIGINAL (VULNERABLE A UTC)
+        // LÓGICA DE CITAS (Original/Simple)
         // =======================================================
 
         function addAppointment(dateStr, timeStr) {
@@ -222,7 +222,7 @@
             
             if (newAppointmentDate <= now) {
                 showModal('Error al Agendar', 'No se puede agendar una cita en el pasado o a una hora ya transcurrida.', true);
-                return false;
+                return;
             }
 
             const isAvailable = appointments.every(apt => {
@@ -233,7 +233,7 @@
 
             if (!isAvailable) {
                 showModal('Error al Agendar', 'Ya existe una cita muy cercana a esta hora. Intervalo mínimo de 30 minutos.', true);
-                return false;
+                return;
             }
 
             const newAppointment = {
@@ -246,7 +246,7 @@
             
             showModal('Cita Agendada', `Tu cita ha sido agendada para el ${formatDateTimeDisplay(newAppointment.dateTime)}.`, false);
             
-            return true;
+            setView('calendar'); 
         }
 
         function cancelAppointment(id) {
@@ -264,17 +264,17 @@
         }
 
         // =======================================================
-        // FUNCIONES DE MENÚ PRINCIPAL (RESTAURADAS A MARCADOR)
+        // FUNCIONES DE MENÚ PRINCIPAL (RESTAURADAS)
         // =======================================================
 
         function scheduleWithVoice() {
-            // RESTAURACIÓN: Muestra el mensaje de que requiere implementación.
+            // Lógica de dictado: solo muestra un mensaje, ya que el código de voz es avanzado.
             showModal('Agendar con Dictado 🎤', 'Esta función requiere implementar la API de Reconocimiento de Voz. Se continuará en el modo de formulario manual.', false);
-            setView('calendar'); 
+            setView('calendar'); // Redirige al calendario para agendar manualmente.
         }
 
         function viewAppointments() {
-             // Redirige directamente al calendario.
+             // Redirige directamente al calendario, ya que la vista de "Ver Citas" se realiza allí.
             setView('calendar');
         }
 
@@ -541,7 +541,6 @@
                 addAppointment(dateStr, timeInput);
             });
         }
-
 
         // =======================================================
         // INICIO DE LA APLICACIÓN
