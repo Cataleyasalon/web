@@ -138,26 +138,22 @@
 
         /** Reproduce un sonido de notificación simple (beep) usando Web Audio API. */
         function playNotificationSound() {
-            // La Web Audio API a menudo requiere una interacción de usuario previa
-            // para reproducir sonido. En este entorno, funcionará si ya hubo un clic.
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 const oscillator = audioCtx.createOscillator();
                 const gainNode = audioCtx.createGain();
 
-                oscillator.type = 'sine'; // Tono simple
-                oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // Frecuencia A4
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
                 
-                // Conectar y configurar volumen
                 oscillator.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
                 gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-                gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.01); // Ataque rápido
+                gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.01);
 
                 oscillator.start();
                 
-                // Detener después de 0.2 segundos (chime corto)
-                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2); // Caída rápida
+                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
                 oscillator.stop(audioCtx.currentTime + 0.2);
             } catch (e) {
                 console.warn('Fallo al reproducir sonido (posiblemente por restricciones de navegador):', e);
@@ -166,7 +162,7 @@
 
         /** Muestra el modal de recordatorio diario. */
         function showDailyReminderModal(title, htmlContent) {
-            playNotificationSound(); // <-- Llamada al sonido
+            playNotificationSound();
             document.getElementById('reminder-title').textContent = title;
             document.getElementById('reminder-content').innerHTML = htmlContent;
             document.getElementById('reminder-modal').classList.remove('hidden');
@@ -183,6 +179,7 @@
             const dateStr = d.toLocaleDateString('es-ES', {
                 day: '2-digit', month: '2-digit', year: 'numeric'
             });
+            // Usa el formato de 24h para la hora ya que es más seguro para Date()
             const timeStr = d.toLocaleTimeString('es-ES', {
                 hour: '2-digit', minute: '2-digit'
             });
@@ -214,7 +211,6 @@
             try {
                 const storedData = localStorage.getItem(STORAGE_KEY);
                 if (!storedData) {
-                    // Inicializa si no hay datos.
                     saveAppointments([], Date.now());
                     return [];
                 }
@@ -237,20 +233,14 @@
                 currentAppointments = filteredAppointments;
 
                 // --- 2. Lógica de Reinicio Mensual (Prevención de duplicados en el pasado) ---
-                // Esta lógica se mantiene solo para actualizar el timestamp y evitar
-                // la duplicación de lógica pasada. La limpieza de historial ya
-                // cubre la parte de eliminar citas antiguas.
-                
                 const lastDate = new Date(data.lastResetTimestamp);
                 
-                // **CORRECCIÓN:** Solo actualizamos el timestamp al inicio de un nuevo mes
-                // para mantener la referencia, pero NO eliminamos citas futuras.
+                // Solo actualizamos el timestamp al inicio de un nuevo mes
                 if (now.getFullYear() > lastDate.getFullYear() || now.getMonth() > lastDate.getMonth()) {
                     console.log('¡Nuevo mes detectado! Actualizando timestamp de reinicio.');
                     shouldSave = true; // Forzar guardado para actualizar el timestamp
                 }
                 
-                // Si hubo limpieza o se actualizó el timestamp, guardamos.
                 if (shouldSave) {
                     saveAppointments(currentAppointments, now.getTime());
                 }
@@ -406,8 +396,6 @@
 
         /** Confirma y ejecuta la cancelación de una cita. */
         function confirmCancelAppointment(id) {
-            // Este es un reemplazo simplificado del 'confirm()', ya que 'confirm()' no funciona en el entorno.
-            // En una app real, aquí se mostraría un modal de confirmación.
             
             const aptToCancel = appointments.find(apt => apt.id === id);
 
@@ -418,7 +406,7 @@
             }
             
             // Simulación de confirmación (asume que si el usuario presiona el botón, quiere cancelar)
-            const confirmed = true; // Forzamos la cancelación inmediata para este entorno
+            const confirmed = true;
             
             if (confirmed) {
                 appointments = appointments.filter(apt => apt.id !== id);
@@ -479,8 +467,6 @@
                 if (currentView === 'home' || currentView === 'cancel' || currentView === 'calendar') {
                    // Ya se manejó la transición o finalización, no hacer nada.
                 } else {
-                    // Si terminó por sí mismo, re-renderizar la vista de inicio
-                    // Esto evita un bucle si el usuario no dijo nada y el evento 'onend' se disparó después de 'onerror'
                     if (viewContainer.querySelector('.animate-pulse')) {
                        setView('home');
                     }
@@ -496,23 +482,26 @@
             }
         }
 
-        /** * *CORREGIDO:* Procesa el texto reconocido para extraer nombre y fecha/hora,
-         * construyendo el objeto Date manualmente para evitar errores de interpretación.
+        /** * *ULTIMA CORRECCIÓN:* Procesa el texto reconocido para extraer nombre y fecha/hora,
+         * construyendo el objeto Date manualmente con lógica de año y hora mejorada.
          */
         function processVoiceCommand(text) {
             const lowerText = text.toLowerCase();
             
-            // Regex robusta: Captura el día, mes, hora y parte del día (mañana/tarde/am/pm).
-            const dateRegex = /el\s+(\d{1,2})\s+(de|del)\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre).*?(\d{1,2})(:\d{2})?\s+(de la mañana|am|de la tarde|pm)/i;
+            // Regex más tolerante: 
+            // 1. Permite "el", "a", "las", "la" opcionales.
+            // 2. Captura la hora de forma flexible (e.g., "3" o "3:30").
+            const dateRegex = /(el\s+)?(\d{1,2})\s+(de|del)\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre).*?(a\s+(la|las)\s+)?(\d{1,2})(:\d{2})?\s*(de la mañana|am|de la tarde|pm|noche|madrugada)?/i;
             
             const match = lowerText.match(dateRegex);
 
             if (!match) {
-                showModal(`No pude encontrar una fecha y hora clara en: "${text}". Por favor, intenta decir "el [día] de [mes] a las [hora] de la [mañana/tarde]".`);
+                showModal(`❌ No pude encontrar una fecha y hora clara en: "${text}". Por favor, intenta decir "el [día] de [mes] a las [hora] de la [mañana/tarde]".`);
                 setView('home');
                 return;
             }
 
+            // Extracción de Nombre
             const rawNamePart = text.substring(0, match.index).trim();
             let name = rawNamePart.replace(/agendar (a|una cita a|para) /i, '').trim();
             if (name === '') {
@@ -520,52 +509,72 @@
             }
             
             // Extracción de componentes
-            const day = parseInt(match[1]);
-            const monthName = match[3]; // Nombre del mes
-            let hour = parseInt(match[4]);
-            const minutes = match[5] ? parseInt(match[5].substring(1)) : 0; // Si hay minutos (:mm)
-            const period = match[6]; // "de la mañana", "de la tarde", "am", "pm"
+            const day = parseInt(match[2]);
+            const monthName = match[4]; 
+            let hour = parseInt(match[7]);
+            const minutes = match[8] ? parseInt(match[8].substring(1)) : 0;
+            const period = match[9] || ''; // 'de la mañana', 'de la tarde', 'am', 'pm', 'noche', 'madrugada'
 
             const monthIndex = monthMap[monthName];
-            const currentYear = new Date().getFullYear();
+            const now = new Date();
+            let currentYear = now.getFullYear();
             
-            // APLICACIÓN DE HORARIO (CRUCIAL PARA LA CORRECCIÓN)
+            // --------------------------------------------------
+            // APLICACIÓN DE HORARIO Y LÓGICA DE AÑO (CRUCIAL)
+            // --------------------------------------------------
             
-            // Lógica para horas de la mañana (AM) y tarde (PM)
-            const isPM = period.includes('tarde') || period === 'pm';
+            const isPM = period.includes('tarde') || period.includes('pm') || period.includes('noche');
+            const isAM = period.includes('mañana') || period.includes('am') || period.includes('madrugada');
 
             if (isPM && hour < 12) {
-                // Si es PM y la hora es 1, 2, 3... (no 12), le sumamos 12.
-                // 12 PM (mediodía) no necesita suma.
+                // 1, 2, 3... PM -> 13, 14, 15... (12 PM no se suma)
                 hour += 12; 
-            } else if (!isPM && hour === 12) {
-                // Si es AM (o no es PM) y la hora es 12 (medianoche), lo convertimos a 0.
+            } else if ((isAM || period === '') && hour === 12) {
+                // 12 AM (medianoche) -> 0
                 hour = 0;
+            } else if (hour > 12) {
+                // Si ya se dijo la hora en formato 24h, no hacemos nada (ej. "a las 15")
+                // Se asume que el usuario habló en formato 24h si la hora > 12.
             }
+            // NOTA: Si no se dijo AM/PM y hour <= 12, se asume el formato 24h o que es mañana/tarde según el contexto.
+            // Para ser más seguros, si no hay periodo, se mantiene la hora tal cual (ej. "a las 5" es 5:00, no 17:00).
             
-            // Construcción manual y segura del objeto Date
-            const aptDate = new Date(currentYear, monthIndex, day, hour, minutes, 0);
+            // Construcción manual del objeto Date
+            let aptDate = new Date(currentYear, monthIndex, day, hour, minutes, 0);
 
-            // Verificación de validez (por si el mes/día no existía)
-            // Se verifica que la fecha construida realmente contenga los valores correctos
+            // --------------------------------------------------
+            // Lógica de Año (Evita agendar en el pasado)
+            // --------------------------------------------------
+            if (aptDate < now && aptDate.getMonth() <= now.getMonth()) {
+                 // Si la fecha es de un mes/día que ya pasó, asumimos el próximo año.
+                 // EXCEPCIÓN: Si el mes actual es el mismo, pero el día ya pasó, también aumentamos el año.
+                 if (aptDate.getMonth() === now.getMonth() && aptDate.getDate() < now.getDate() || aptDate.getMonth() < now.getMonth()) {
+                     aptDate = new Date(currentYear + 1, monthIndex, day, hour, minutes, 0);
+                     console.log(`Fecha pasada, ajustada a: ${currentYear + 1}`);
+                 }
+            }
+
+            // Verificación de validez (Crucial: si el mes construido no coincide con el mes de la transcripción, es inválido)
             if (isNaN(aptDate.getTime()) || aptDate.getMonth() !== monthIndex || aptDate.getDate() !== day) {
-                showModal(`Error (Fecha Inválida): Parece que la fecha ${day} de ${monthName} no es válida para el año actual o el formato es incorrecto.`);
+                showModal(`❌ Error (Fecha Inválida): No pude crear la fecha ${day} de ${monthName}. Revisa el día o el mes.`);
                 setView('home');
                 return;
             }
             
-            // Si la fecha es de un mes pasado, y es después del mes actual, asume el próximo año
-            if (aptDate < Date.now() && aptDate.getMonth() < new Date().getMonth()) {
-                aptDate.setFullYear(currentYear + 1);
+            if (aptDate < now) {
+                // Doble chequeo final para evitar el pasado (ej. si agendó para "hoy a las 2 AM" y son las 3 PM)
+                showModal('❌ Error: La hora y fecha especificadas ya han pasado. Por favor, especifica una hora futura.');
+                setView('home');
+                return;
             }
 
             // Confirmación antes de agendar
-            showModal(`¿Quieres agendar a ${name} para el ${formatDateTime(aptDate)}? \n\n (Nota: En este ejemplo, la cita se agendará automáticamente. Si hubiese un botón de "Confirmar", lo presionarías aquí).`);
+            showModal(`✅ ¿Quieres agendar a ${name} para el ${formatDateTime(aptDate)}?`);
 
-            // Ejecuta el agendamiento después de una breve pausa para que el usuario pueda leer el mensaje
+            // Ejecuta el agendamiento después de una breve pausa
             setTimeout(() => {
                 addAppointment(name, aptDate.toISOString());
-            }, 1000); // 1 segundo de espera
+            }, 1000); 
         }
 
         // =======================================================
@@ -582,19 +591,15 @@
 
         /**
          * Verifica si son las 10:00 PM o más tarde y muestra las citas del día siguiente.
-         * Se usa localStorage para evitar mostrar el recordatorio más de una vez por día.
          */
         function checkAndScheduleDailyReminder() {
             const now = new Date();
             const targetHour = 22; // 10 PM
             
-            // 1. Verificar si ya pasó la hora de recordatorio (22:00 en este caso).
             if (now.getHours() >= targetHour) {
                 const todayDateString = now.toISOString().substring(0, 10);
-                // La clave de almacenamiento es única por día para resetear cada 24h
                 const reminderShownKey = `reminder_shown_${todayDateString}`;
                 
-                // 2. Verificar si el recordatorio ya fue mostrado hoy (después de las 10 PM)
                 if (localStorage.getItem(reminderShownKey) === 'true') {
                     console.log('Recordatorio de mañana ya mostrado hoy.');
                     return; 
@@ -612,7 +617,6 @@
                 if (appointmentsTomorrow.length > 0) {
                     title = `🔔 Citas para Mañana (${tomorrowDateString.split('-').reverse().join('/')})`;
                     content = appointmentsTomorrow.map(apt => {
-                        // Se crea un objeto Date solo para formatear la hora de manera segura
                         const aptDate = new Date(apt.dateTime);
                         const timeDisplay = aptDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
@@ -631,21 +635,17 @@
                 
                 showDailyReminderModal(title, content);
                 
-                // Marcar como mostrado para hoy.
                 localStorage.setItem(reminderShownKey, 'true');
             } 
-            // Si la hora es antes de las 10 PM, simplemente no se muestra.
         }
 
         // =======================================================
         // INICIO DE LA APLICACIÓN
         // =======================================================
         
-        // Inicializa la aplicación cargando las citas y renderizando la vista Home
         window.onload = () => {
             appointments = loadAppointments();
             renderView();
-            // Verifica y muestra el recordatorio si es después de las 10 PM
             checkAndScheduleDailyReminder(); 
         };
 
