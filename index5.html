@@ -110,6 +110,12 @@
         let currentView = 'home';
         let appointments = [];
         let recognition = null; // Para la API de voz
+        
+        // Mapeo de meses en español a números de JS (0 = enero, 11 = diciembre)
+        const monthMap = {
+            'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3, 'mayo': 4, 'junio': 5,
+            'julio': 6, 'agosto': 7, 'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11
+        };
 
         const viewContainer = document.getElementById('view-container');
         const messageModal = document.getElementById('message-modal');
@@ -218,9 +224,10 @@
                 const now = new Date();
                 
                 // --- 1. Lógica de Limpieza de Historial (4 meses para atrás) ---
+                // Se elimina cualquier cita anterior a 4 meses antes del día actual.
                 const fourMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 4, now.getDate());
                 
-                // Filtra todas las citas que son posteriores (>=) a hace 4 meses.
+                // Filtra: mantiene citas que son posteriores (>=) a hace 4 meses.
                 const filteredAppointments = currentAppointments.filter(apt => {
                     const aptDate = new Date(apt.dateTime);
                     return aptDate >= fourMonthsAgo;
@@ -229,17 +236,17 @@
                 let shouldSave = currentAppointments.length !== filteredAppointments.length;
                 currentAppointments = filteredAppointments;
 
-                // --- 2. Lógica de Reinicio Mensual (Para evitar duplicados) ---
-                // Esta lógica se usaba para simular un reseteo, pero debe ser adaptada
-                // para evitar borrar *citas futuras* que ya hayan sido agendadas.
+                // --- 2. Lógica de Reinicio Mensual (Prevención de duplicados en el pasado) ---
+                // Esta lógica se mantiene solo para actualizar el timestamp y evitar
+                // la duplicación de lógica pasada. La limpieza de historial ya
+                // cubre la parte de eliminar citas antiguas.
                 
                 const lastDate = new Date(data.lastResetTimestamp);
                 
+                // **CORRECCIÓN:** Solo actualizamos el timestamp al inicio de un nuevo mes
+                // para mantener la referencia, pero NO eliminamos citas futuras.
                 if (now.getFullYear() > lastDate.getFullYear() || now.getMonth() > lastDate.getMonth()) {
                     console.log('¡Nuevo mes detectado! Actualizando timestamp de reinicio.');
-                    // Solo actualizamos el timestamp, NO eliminamos citas,
-                    // ya que la limpieza de historial ya fue manejada arriba y
-                    // no queremos borrar citas futuras.
                     shouldSave = true; // Forzar guardado para actualizar el timestamp
                 }
                 
@@ -390,10 +397,6 @@
                 return;
             }
 
-            // Aquí se podría añadir una lógica más robusta contra duplicados,
-            // pero la solicitud era mantener la de "reinicio mensual" adaptada
-            // para no borrar citas futuras, lo cual se hizo en loadAppointments.
-
             appointments.push(newAppointment);
             saveAppointments(appointments);
             showModal(`¡Cita agendada! ${name} el ${formatDateTime(newAppointment.dateTime)}.`);
@@ -447,6 +450,7 @@
                     <i class="fas fa-microphone-alt animate-pulse text-5xl text-accent mb-4"></i>
                     <p class="text-gray-400">Di el nombre y la hora de la cita, por ejemplo:</p>
                     <p class="text-sm font-mono text-gray-500">"Agendar a Juan Pérez el 10 de octubre a las 3 de la tarde"</p>
+                    <p class="text-sm font-mono text-gray-500">"Agendar a Ana el 5 de enero a las 9 de la mañana"</p>
                     <button onclick="setView('home')"
                         class="mt-6 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
                         <i class="fas fa-stop mr-2"></i> Cancelar Dictado
@@ -492,60 +496,70 @@
             }
         }
 
-        /** Procesa el texto reconocido para extraer nombre y fecha/hora. */
+        /** * *CORREGIDO:* Procesa el texto reconocido para extraer nombre y fecha/hora,
+         * construyendo el objeto Date manualmente para evitar errores de interpretación.
+         */
         function processVoiceCommand(text) {
-            // Un parser de voz real sería complejo, esto es un ejemplo simplificado.
-            
             const lowerText = text.toLowerCase();
             
-            // --- CÓDIGO CORREGIDO PARA INCLUIR HORAS AM ---
-            // Regex mejorada: Ahora incluye 'de la mañana' / 'am' y 'pm' para la hora.
-            const dateRegex = /(\d{1,2})\s+(de|del)\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+.*?(\d{1,2})(:\d{2})?\s+(de la mañana|de la tarde|am|pm)/i;
+            // Regex robusta: Captura el día, mes, hora y parte del día (mañana/tarde/am/pm).
+            const dateRegex = /el\s+(\d{1,2})\s+(de|del)\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre).*?(\d{1,2})(:\d{2})?\s+(de la mañana|am|de la tarde|pm)/i;
             
             const match = lowerText.match(dateRegex);
 
             if (!match) {
-                showModal(`No pude encontrar una fecha y hora clara en: "${text}". Por favor, inténtalo de nuevo. Asegúrate de incluir el día, el mes, la hora y 'de la mañana' o 'de la tarde'.`);
+                showModal(`No pude encontrar una fecha y hora clara en: "${text}". Por favor, intenta decir "el [día] de [mes] a las [hora] de la [mañana/tarde]".`);
                 setView('home');
                 return;
             }
 
-            // Simplificación: asumimos que todo antes de la fecha es el nombre (o parte de la instrucción)
             const rawNamePart = text.substring(0, match.index).trim();
-            
-            // Intentamos limpiar la parte del nombre de palabras clave (e.g., "agendar a")
             let name = rawNamePart.replace(/agendar (a|una cita a|para) /i, '').trim();
-
             if (name === '') {
                 name = 'Cliente Sin Nombre';
             }
             
-            // Reconstruye la cadena de fecha para que el Date constructor de JS la entienda mejor.
-            let dateString = match[0];
-            
-            // 1. Reemplaza las frases horarias con formatos estándar AM/PM.
-            // Esto es crucial para que Date() interprete correctamente las horas AM.
-            dateString = dateString.replace('de la mañana', 'am').replace('de la tarde', 'pm');
-            
-            // 2. Elimina preposiciones que Date.parse() podría no entender, como "a las" o "a la".
-            dateString = dateString.replace(/a\s+las|a\s+la/i, '');
-            
-            // Simplificación: Asigna la fecha al año actual y quita la palabra 'el' si queda.
+            // Extracción de componentes
+            const day = parseInt(match[1]);
+            const monthName = match[3]; // Nombre del mes
+            let hour = parseInt(match[4]);
+            const minutes = match[5] ? parseInt(match[5].substring(1)) : 0; // Si hay minutos (:mm)
+            const period = match[6]; // "de la mañana", "de la tarde", "am", "pm"
+
+            const monthIndex = monthMap[monthName];
             const currentYear = new Date().getFullYear();
-            dateString += ` ${currentYear}`; 
-            dateString = dateString.replace(/\sel\s/i, ' ').trim(); // Quita 'el' que pueda quedar (e.g. "el 10 de...")
+            
+            // APLICACIÓN DE HORARIO (CRUCIAL PARA LA CORRECCIÓN)
+            
+            // Lógica para horas de la mañana (AM) y tarde (PM)
+            const isPM = period.includes('tarde') || period === 'pm';
 
-            // Intenta convertir la cadena simplificada a un objeto Date
-            const aptDate = new Date(dateString);
+            if (isPM && hour < 12) {
+                // Si es PM y la hora es 1, 2, 3... (no 12), le sumamos 12.
+                // 12 PM (mediodía) no necesita suma.
+                hour += 12; 
+            } else if (!isPM && hour === 12) {
+                // Si es AM (o no es PM) y la hora es 12 (medianoche), lo convertimos a 0.
+                hour = 0;
+            }
+            
+            // Construcción manual y segura del objeto Date
+            const aptDate = new Date(currentYear, monthIndex, day, hour, minutes, 0);
 
-            if (isNaN(aptDate.getTime())) {
-                // Este error indica un problema en el formato de la cadena reconstruida
-                showModal(`Error (Formato): No pude interpretar la fecha: "${dateString}".`);
+            // Verificación de validez (por si el mes/día no existía)
+            // Se verifica que la fecha construida realmente contenga los valores correctos
+            if (isNaN(aptDate.getTime()) || aptDate.getMonth() !== monthIndex || aptDate.getDate() !== day) {
+                showModal(`Error (Fecha Inválida): Parece que la fecha ${day} de ${monthName} no es válida para el año actual o el formato es incorrecto.`);
                 setView('home');
                 return;
             }
+            
+            // Si la fecha es de un mes pasado, y es después del mes actual, asume el próximo año
+            if (aptDate < Date.now() && aptDate.getMonth() < new Date().getMonth()) {
+                aptDate.setFullYear(currentYear + 1);
+            }
 
-            // Confirmación antes de agendar (Reemplazo de 'confirm()')
+            // Confirmación antes de agendar
             showModal(`¿Quieres agendar a ${name} para el ${formatDateTime(aptDate)}? \n\n (Nota: En este ejemplo, la cita se agendará automáticamente. Si hubiese un botón de "Confirmar", lo presionarías aquí).`);
 
             // Ejecuta el agendamiento después de una breve pausa para que el usuario pueda leer el mensaje
