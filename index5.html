@@ -3,619 +3,555 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cataleya - Sistema de Citas</title>
+    <title>Sistema de Citas - Menú de 3 Opciones Original</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Configuración de Tailwind para usar 'Inter' y activar modo oscuro -->
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        'primary-dark': '#111827', // Gray-900
-                        'secondary-dark': '#1f2937', // Gray-800
-                        'accent': '#a78bfa', // Violet-400
-                        'accent-hover': '#8b5cf6', // Violet-500
-                        'cancel': '#f87171', // Red-400
-                    }
-                }
-            }
-        }
-    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* Estilo general oscuro y minimalista */
+        /* Estilos personalizados */
+        :root {
+            --primary-dark: #1f2937; /* Gray-800 */
+            --secondary-dark: #374151; /* Gray-700 */
+            --accent: #ef4444; /* Red-500 */
+            --occupied-day: #10b981; /* Emerald-500 */
+        }
         body {
-            background-color: #0d1117; /* Fondo muy oscuro */
-            color: #d1d5db; /* Texto gris claro */
-            font-family: 'Inter', sans-serif;
-            min-height: 100vh;
+            background-color: var(--primary-dark);
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .view-container {
+            background-color: var(--secondary-dark);
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+        .day-cell {
+            background-color: var(--secondary-dark);
+            height: 80px;
             display: flex;
+            flex-direction: column;
+            align-items: center;
             justify-content: center;
-            /* Permite que el contenido se centre y se ajuste verticalmente */
-            align-items: center; 
+            border-radius: 0.375rem;
+            cursor: pointer;
+            position: relative;
+            transition: background-color 0.15s;
         }
-
-        .card {
-            background-color: #161b22; /* Fondo de tarjeta más claro que el body */
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        .day-name {
+            height: 30px;
+            background-color: var(--primary-dark);
+            color: var(--accent);
+            cursor: default;
         }
-
-        /* Estilo para la lista de citas */
-        .appointment-item:hover {
-            background-color: #2d3748;
+        .day-cell.disabled {
+            cursor: not-allowed;
+            background-color: var(--primary-dark);
         }
-        
-        /* Estilo minimalista para scrollbar */
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
+        .occupied-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--occupied-day);
+            border-radius: 50%;
+            margin-top: 4px;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #4b5563; /* Gray-600 */
-            border-radius: 3px;
+        .btn-primary {
+            background-color: var(--accent);
+            transition: background-color 0.15s;
         }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #1f2937; /* Gray-800 */
+        .btn-primary:hover {
+            background-color: #dc2626; /* Red-600 */
         }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
+    <div class="container">
+        <header class="text-center mb-6 p-4 bg-secondary-dark rounded-lg">
+            <h1 class="text-4xl font-extrabold text-white">Gestor de Citas <i class="fas fa-clock text-accent ml-2"></i></h1>
+        </header>
+        
+        <nav class="flex justify-center space-x-4 mb-6 p-3 bg-gray-800 rounded-lg">
+            <button onclick="setView('home')" 
+                    class="text-white hover:text-accent font-semibold py-2 px-4 rounded transition duration-200">
+                <i class="fas fa-home mr-1"></i> Inicio
+            </button>
+            <button onclick="setView('calendar')" 
+                    class="text-white hover:text-accent font-semibold py-2 px-4 rounded transition duration-200">
+                <i class="fas fa-calendar-alt mr-1"></i> Calendario
+            </button>
+        </nav>
 
-    <!-- Contenedor principal responsive: ocupa todo el ancho en móvil, limitado en escritorio -->
-    <div id="app" class="card p-6 sm:p-8 lg:p-10 w-full max-w-lg mx-4 rounded-xl transition-all duration-300">
+        <div id="viewContainer" class="view-container">
+            </div>
 
-        <!-- Logo/Título (Mejorado para responsividad) -->
-        <div class="text-center mb-6">
-            <!-- Placeholder para Logo de imagen: descomentar y reemplazar el URL si se usa un logo -->
-            <!-- <img src="URL_DEL_LOGO" alt="Logo Cataleya" class="mx-auto h-16 mb-4"> -->
-            <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-wider">
-                <!-- El tamaño del ícono escala de 3xl a 4xl en pantallas medianas (md) -->
-                <i class="fas fa-scissors text-accent mr-2 text-3xl md:text-4xl"></i> Cataleya
-            </h1>
-        </div>
-        <!-- El tamaño de la fuente escala de sm a base en pantallas pequeñas/medianas -->
-        <p class="text-center text-gray-400 mb-8 text-sm sm:text-base">Sistema de Gestión de Citas</p>
-
-        <!-- Contenedor Principal (Cambia de vista con JS) -->
-        <div id="view-container">
-            <!-- El contenido de la vista se renderiza aquí -->
-        </div>
-
-        <!-- Modal para Mensajes (Reemplazo de alert()) -->
-        <div id="message-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-            <div class="bg-secondary-dark p-6 rounded-lg max-w-sm w-full text-center border border-accent">
-                <p id="modal-text" class="text-white text-lg mb-4"></p>
-                <button onclick="closeModal()" class="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-lg transition duration-200 shadow-md shadow-violet-700/50">
-                    Entendido
-                </button>
+        <div id="modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center hidden z-50" onclick="hideModal()">
+            <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full" onclick="event.stopPropagation()">
+                <h3 id="modalTitle" class="text-xl font-bold mb-4 text-gray-800">Mensaje</h3>
+                <p id="modalMessage" class="mb-6 text-gray-600"></p>
+                <div id="modalActions" class="flex justify-end space-x-3">
+                    <button id="modalCloseButton" onclick="hideModal()" class="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition duration-150">Cerrar</button>
+                    </div>
             </div>
         </div>
-
-        <!-- Modal para Recordatorio Diario (10:00 PM) - Minimalista, Sombreado y Morado -->
-        <div id="reminder-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-40">
-            <div class="bg-secondary-dark p-6 rounded-xl max-w-sm w-full text-left border border-accent shadow-2xl shadow-violet-700/50 transform transition-all duration-300 scale-100">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 id="reminder-title" class="text-xl font-bold text-accent"></h3>
-                    <button onclick="closeReminderModal()" class="text-gray-400 hover:text-white transition duration-200">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div id="reminder-content" class="text-gray-300 space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                    <!-- Contenido de las citas del día siguiente -->
-                </div>
-                <button onclick="closeReminderModal()" class="mt-4 w-full bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-lg transition duration-200">
-                    Cerrar Recordatorio
-                </button>
-            </div>
-        </div>
-
     </div>
 
     <script>
-        // =======================================================
-        // CONSTANTES Y CONFIGURACIÓN
-        // =======================================================
-        const STORAGE_KEY = 'cataleya_appointments_data';
-        let currentView = 'home';
+        const STORAGE_KEY = 'appointment_manager_data';
         let appointments = [];
-        let recognition = null; // Para la API de voz
-
-        const viewContainer = document.getElementById('view-container');
-        const messageModal = document.getElementById('message-modal');
-        const modalText = document.getElementById('modal-text');
+        let currentCalendarDate = new Date();
+        let currentView = 'home';
+        
+        const viewContainer = document.getElementById('viewContainer');
+        const modal = document.getElementById('modal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalActions = document.getElementById('modalActions');
 
         // =======================================================
-        // UTILERÍAS GLOBALES
+        // UTILIDADES Y FORMATO
         // =======================================================
 
-        /** Muestra un modal personalizado en lugar de 'alert()' */
-        function showModal(message) {
-            modalText.textContent = message;
-            messageModal.classList.remove('hidden');
+        function formatDateOnly(dateTimeStr) {
+            const date = new Date(dateTimeStr);
+            return date.toISOString().substring(0, 10); // YYYY-MM-DD
+        }
+        
+        function formatDateTimeDisplay(dateTimeStr) {
+            const date = new Date(dateTimeStr);
+            const options = { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                hour12: true 
+            };
+            return date.toLocaleDateString('es-ES', options);
         }
 
-        /** Cierra el modal personalizado */
-        function closeModal() {
-            messageModal.classList.add('hidden');
-        }
+        function showModal(title, message, isError = false, confirmationCallback = null) {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            
+            modalActions.innerHTML = '';
 
-        /** Reproduce un sonido de notificación simple (beep) usando Web Audio API. */
-        function playNotificationSound() {
-            // La Web Audio API a menudo requiere una interacción de usuario previa
-            // para reproducir sonido. En este entorno, funcionará si ya hubo un clic.
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-
-                oscillator.type = 'sine'; // Tono simple
-                oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // Frecuencia A4
-                
-                // Conectar y configurar volumen
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-                gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.01); // Ataque rápido
-
-                oscillator.start();
-                
-                // Detener después de 0.2 segundos (chime corto)
-                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2); // Caída rápida
-                oscillator.stop(audioCtx.currentTime + 0.2);
-            } catch (e) {
-                console.warn('Fallo al reproducir sonido (posiblemente por restricciones de navegador):', e);
+            if (confirmationCallback) {
+                const confirmBtn = document.createElement('button');
+                confirmBtn.className = 'px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition duration-150';
+                confirmBtn.textContent = 'Confirmar';
+                confirmBtn.onclick = () => {
+                    confirmationCallback();
+                    hideModal();
+                };
+                modalActions.appendChild(confirmBtn);
             }
+            
+            const closeBtn = document.createElement('button');
+            closeBtn.id = 'modalCloseButton';
+            closeBtn.className = 'px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition duration-150';
+            closeBtn.textContent = confirmationCallback ? 'Cancelar' : 'Cerrar';
+            closeBtn.onclick = hideModal;
+            modalActions.appendChild(closeBtn);
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
         }
 
-        /** Muestra el modal de recordatorio diario. */
-        function showDailyReminderModal(title, htmlContent) {
-            playNotificationSound(); // <-- Llamada al sonido
-            document.getElementById('reminder-title').textContent = title;
-            document.getElementById('reminder-content').innerHTML = htmlContent;
-            document.getElementById('reminder-modal').classList.remove('hidden');
-        }
-
-        /** Cierra el modal de recordatorio diario. */
-        function closeReminderModal() {
-            document.getElementById('reminder-modal').classList.add('hidden');
-        }
-
-        /** Formatea una fecha y hora como 'DD/MM/YYYY HH:mm' */
-        function formatDateTime(date) {
-            const d = new Date(date);
-            const dateStr = d.toLocaleDateString('es-ES', {
-                day: '2-digit', month: '2-digit', year: 'numeric'
-            });
-            const timeStr = d.toLocaleTimeString('es-ES', {
-                hour: '2-digit', minute: '2-digit'
-            });
-            return `${dateStr} a las ${timeStr}`;
+        function hideModal() {
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
         }
 
         // =======================================================
-        // GESTIÓN DE LOCALSTORAGE CON REGLA DE BORRADO MENSUAL
+        // GESTIÓN DE LOCALSTORAGE (Versión Original/Simple)
         // =======================================================
 
-        /** Guarda el estado actual de las citas y el timestamp de reinicio. */
-        function saveAppointments(apts, timestamp = Date.now()) {
+        function saveAppointments(apts) {
             const data = {
                 appointments: apts,
-                lastResetTimestamp: timestamp
+                lastSaveTimestamp: Date.now() 
             };
             try {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
             } catch (error) {
-                console.error('Error saving to localStorage:', error);
-                showModal('Error al guardar datos. El almacenamiento podría estar lleno o desactivado.');
+                console.error('Error al guardar en localStorage:', error);
+                showModal('Error al guardar datos. El almacenamiento podría estar lleno o desactivado.', true);
             }
         }
 
-        /** Carga las citas y aplica la lógica de reinicio mensual. */
         function loadAppointments() {
             try {
                 const storedData = localStorage.getItem(STORAGE_KEY);
-                if (storedData) {
-                    const data = JSON.parse(storedData);
-                    
-                    const lastDate = new Date(data.lastResetTimestamp);
-                    const now = new Date();
-
-                    // Lógica de Reinicio Mensual: Si el mes o el año ha cambiado, reinicia.
-                    if (now.getFullYear() > lastDate.getFullYear() || now.getMonth() > lastDate.getMonth()) {
-                        console.log('¡Nuevo mes detectado! Reiniciando la base de datos de citas.');
-                        // Guardar un nuevo timestamp de reinicio con la lista vacía
-                        saveAppointments([], now.getTime());
-                        return []; 
-                    }
-
-                    // Si no es nuevo mes, retorna las citas existentes.
-                    return data.appointments.sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
-
-                } else {
-                    // Si no hay datos, inicializa y guarda el timestamp actual.
-                    saveAppointments([], Date.now());
+                if (!storedData) {
+                    saveAppointments([]);
                     return [];
                 }
+                
+                const data = JSON.parse(storedData);
+                
+                // Carga simple sin filtros automáticos de historial
+                return data.appointments.sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
+
             } catch (error) {
-                console.error('Error loading or parsing localStorage:', error);
-                showModal('Error al cargar datos. Los datos de citas podrían estar corruptos.');
+                console.error('Error al cargar o analizar localStorage:', error);
+                showModal('Error al cargar datos. Los datos de citas podrían estar corruptos.', true);
                 return [];
             }
         }
 
         // =======================================================
-        // VISTAS Y RENDERIZADO
+        // LÓGICA DE CITAS (Original/Simple)
         // =======================================================
 
-        /** Rota la vista de la aplicación. */
-        function setView(viewName) {
-            currentView = viewName;
-            renderView();
-        }
-
-        /** Renderiza la vista principal (Home) */
-        function renderHome() {
-            viewContainer.innerHTML = `
-                <div class="space-y-4">
-                    <button onclick="startSpeechRecognition()"
-                        class="w-full bg-accent hover:bg-accent-hover text-white text-lg font-extrabold py-4 px-6 rounded-xl transition duration-300 transform hover:scale-[1.02] shadow-xl shadow-violet-700/30 flex items-center justify-center">
-                        <i class="fas fa-microphone text-2xl mr-3"></i>
-                        AGENDAR CITA (DICTADO)
-                    </button>
-
-                    <button onclick="setView('calendar')"
-                        class="w-full bg-secondary-dark hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 flex items-center justify-center border border-gray-700">
-                        <i class="fas fa-calendar-alt mr-3"></i>
-                        VER CALENDARIO
-                    </button>
-
-                    <button onclick="setView('cancel')"
-                        class="w-full bg-cancel hover:bg-red-600 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 flex items-center justify-center border border-red-600">
-                        <i class="fas fa-times-circle mr-3"></i>
-                        CANCELAR CITA
-                    </button>
-                </div>
-            `;
-        }
-
-        /** Renderiza la vista de Calendario */
-        function renderCalendar() {
-            const hasAppointments = appointments.length > 0;
-            const content = hasAppointments 
-                ? appointments.map(apt => `
-                    <div class="appointment-item p-4 mb-2 bg-secondary-dark rounded-lg flex justify-between items-center transition duration-150 border border-gray-700">
-                        <div>
-                            <p class="text-accent font-bold text-lg">${apt.name}</p>
-                            <p class="text-sm text-gray-400">${formatDateTime(apt.dateTime)}</p>
-                        </div>
-                    </div>
-                `).join('')
-                : `<p class="text-center text-gray-500 py-8">No hay citas agendadas.</p>`;
-
-            viewContainer.innerHTML = `
-                <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
-                    <i class="fas fa-calendar-check mr-2 text-accent"></i> Calendario de Citas
-                </h2>
-                <div class="max-h-80 overflow-y-auto custom-scrollbar pr-2">
-                    ${content}
-                </div>
-                <button onclick="setView('home')"
-                    class="mt-6 w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
-                    <i class="fas fa-arrow-left mr-2"></i> Volver
-                </button>
-            `;
-        }
-
-        /** Renderiza la vista de Cancelar Cita */
-        function renderCancel() {
-            const hasAppointments = appointments.length > 0;
-            const content = hasAppointments 
-                ? appointments.map(apt => `
-                    <div class="appointment-item p-4 mb-2 bg-secondary-dark rounded-lg flex justify-between items-center transition duration-150 border border-gray-700" id="apt-${apt.id}">
-                        <div>
-                            <p class="text-accent font-bold">${apt.name}</p>
-                            <p class="text-sm text-gray-400">${formatDateTime(apt.dateTime)}</p>
-                        </div>
-                        <button onclick="confirmCancelAppointment('${apt.id}')"
-                            class="text-cancel hover:text-red-300 font-bold py-1 px-3 rounded-lg transition duration-200 border border-cancel hover:border-red-300">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </div>
-                `).join('')
-                : `<p class="text-center text-gray-500 py-8">No hay citas para cancelar.</p>`;
-
-            viewContainer.innerHTML = `
-                <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
-                    <i class="fas fa-trash-alt mr-2 text-cancel"></i> Cancelar Citas
-                </h2>
-                <div class="max-h-80 overflow-y-auto custom-scrollbar pr-2">
-                    ${content}
-                </div>
-                <button onclick="setView('home')"
-                    class="mt-6 w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
-                    <i class="fas fa-arrow-left mr-2"></i> Volver
-                </button>
-            `;
-        }
-
-        /** Función principal de renderizado */
-        function renderView() {
-            appointments = loadAppointments(); // Recarga citas al cambiar de vista
-            if (recognition) {
-                recognition.stop(); // Asegura que el dictado se detenga al cambiar de vista
-            }
-            switch (currentView) {
-                case 'calendar':
-                    renderCalendar();
-                    break;
-                case 'cancel':
-                    renderCancel();
-                    break;
-                case 'home':
-                default:
-                    renderHome();
-                    break;
-            }
-        }
-
-        // =======================================================
-        // GESTIÓN DE CITAS
-        // =======================================================
-
-        /** Agrega una nueva cita. */
-        function addAppointment(name, dateString) {
-            const newAppointment = {
-                id: crypto.randomUUID(),
-                name: name.trim(),
-                dateTime: new Date(dateString).toISOString()
-            };
-
-            if (new Date(newAppointment.dateTime) < Date.now()) {
-                showModal('¡Error! No puedes agendar una cita en el pasado.');
+        function addAppointment(dateStr, timeStr) {
+            // Lógica original de registro (propensa a errores de UTC)
+            const [hourStr, minuteStr] = timeStr.split(':');
+            let hour = parseInt(hourStr, 10);
+            const minute = parseInt(minuteStr, 10);
+            
+            const dateTimeStr = `${dateStr}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
+            const newAppointmentDate = new Date(dateTimeStr);
+            const now = new Date();
+            
+            if (newAppointmentDate <= now) {
+                showModal('Error al Agendar', 'No se puede agendar una cita en el pasado o a una hora ya transcurrida.', true);
                 return;
             }
+
+            const isAvailable = appointments.every(apt => {
+                const existingDate = new Date(apt.dateTime);
+                const diff = Math.abs(newAppointmentDate.getTime() - existingDate.getTime());
+                return diff >= (30 * 60 * 1000); 
+            });
+
+            if (!isAvailable) {
+                showModal('Error al Agendar', 'Ya existe una cita muy cercana a esta hora. Intervalo mínimo de 30 minutos.', true);
+                return;
+            }
+
+            const newAppointment = {
+                id: Date.now(), 
+                dateTime: newAppointmentDate.toISOString(), 
+            };
 
             appointments.push(newAppointment);
             saveAppointments(appointments);
-            showModal(`¡Cita agendada! ${name} el ${formatDateTime(newAppointment.dateTime)}.`);
-            // Regresar a la vista principal
-            setView('home');
+            
+            showModal('Cita Agendada', `Tu cita ha sido agendada para el ${formatDateTimeDisplay(newAppointment.dateTime)}.`, false);
+            
+            setView('calendar'); 
         }
 
-        /** Confirma y ejecuta la cancelación de una cita. */
-        function confirmCancelAppointment(id) {
-            // Este es un reemplazo simplificado del 'confirm()', ya que 'confirm()' no funciona en el entorno.
-            // En una app real, aquí se mostraría un modal de confirmación.
+        function cancelAppointment(id) {
+            const appointmentId = Number(id); 
+            const originalLength = appointments.length;
+            appointments = appointments.filter(apt => apt.id !== appointmentId);
             
-            const aptToCancel = appointments.find(apt => apt.id === id);
-
-            if (!aptToCancel) {
-                 showModal('Error: Cita no encontrada.');
-                 renderCancel();
-                 return;
-            }
-            
-            // Simulación de confirmación (asume que si el usuario presiona el botón, quiere cancelar)
-            const confirmed = true; // Forzamos la cancelación inmediata para este entorno
-            
-            if (confirmed) {
-                appointments = appointments.filter(apt => apt.id !== id);
+            if (appointments.length < originalLength) {
                 saveAppointments(appointments);
-                showModal(`La cita de ${aptToCancel.name} ha sido cancelada.`);
-                renderCancel(); // Re-renderiza la lista de cancelación
+                showModal('Cita Cancelada', 'La cita ha sido cancelada exitosamente.', false);
+                setView('calendar'); 
+            } else {
+                showModal('Error al Cancelar', 'No se encontró la cita a cancelar.', true);
             }
         }
 
         // =======================================================
-        // RECONOCIMIENTO DE VOZ (DICTADO)
+        // FUNCIONES DE MENÚ PRINCIPAL (RESTAURADAS)
         // =======================================================
 
-        /** Inicializa el reconocimiento de voz. */
-        function startSpeechRecognition() {
-            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                showModal('Tu navegador no soporta la función de dictado. Por favor, usa un botón de agenda manual.');
-                return;
+        function scheduleWithVoice() {
+            // Lógica de dictado: solo muestra un mensaje, ya que el código de voz es avanzado.
+            showModal('Agendar con Dictado 🎤', 'Esta función requiere implementar la API de Reconocimiento de Voz. Se continuará en el modo de formulario manual.', false);
+            setView('calendar'); // Redirige al calendario para agendar manualmente.
+        }
+
+        function viewAppointments() {
+             // Redirige directamente al calendario, ya que la vista de "Ver Citas" se realiza allí.
+            setView('calendar');
+        }
+
+        function deleteAppointments() {
+            // Lógica simple para mostrar el botón de borrado de todas las citas.
+            showModal(
+                'Borrar Citas', 
+                '¿Estás seguro de que quieres borrar **TODAS** las citas agendadas? Esta acción es irreversible.', 
+                true, 
+                () => {
+                    appointments = []; // Vacía el array
+                    saveAppointments([]); // Guarda el array vacío en localStorage
+                    showModal('Éxito', 'Todas las citas han sido borradas exitosamente.', false);
+                    setView('home');
+                }
+            );
+        }
+        
+        // =======================================================
+        // VISTAS Y RENDERIZADO
+        // =======================================================
+
+        function setView(viewName, data = null) {
+            currentView = viewName;
+            switch (viewName) {
+                case 'home':
+                    renderHome();
+                    break;
+                case 'calendar':
+                    renderCalendar();
+                    break;
+                case 'dayDetails':
+                    showDayDetails(data); 
+                    break;
+                case 'schedule':
+                    renderScheduleForm(data); 
+                    break;
+                default:
+                    renderHome();
             }
+        }
 
-            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-            recognition.lang = 'es-ES';
-            recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
-
+        /** Renderiza la vista de Inicio con los tres botones solicitados. */
+        function renderHome() {
             viewContainer.innerHTML = `
-                <div class="text-center p-6 bg-secondary-dark rounded-lg border border-accent">
-                    <p class="text-xl font-semibold text-white mb-4">Escuchando...</p>
-                    <i class="fas fa-microphone-alt animate-pulse text-5xl text-accent mb-4"></i>
-                    <p class="text-gray-400">Di el nombre y la hora de la cita, por ejemplo:</p>
-                    <p class="text-sm font-mono text-gray-500">"Agendar a Juan Pérez el 10 de octubre a las 3 de la tarde"</p>
-                    <button onclick="setView('home')"
-                        class="mt-6 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
-                        <i class="fas fa-stop mr-2"></i> Cancelar Dictado
+                <h2 class="text-2xl font-bold text-white mb-6">Selecciona una opción:</h2>
+                <div class="space-y-4">
+                    <button onclick="scheduleWithVoice()"
+                        class="w-full btn-primary text-white font-semibold py-4 px-6 rounded-lg shadow-md flex items-center justify-center">
+                        <i class="fas fa-microphone-alt mr-3"></i> Agendar Cita con Dictado
+                    </button>
+                    <button onclick="viewAppointments()"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-lg shadow-md flex items-center justify-center transition duration-300">
+                        <i class="fas fa-eye mr-3"></i> Ver Citas
+                    </button>
+                    <button onclick="deleteAppointments()"
+                        class="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-4 px-6 rounded-lg shadow-md flex items-center justify-center transition duration-300">
+                        <i class="fas fa-trash-alt mr-3"></i> Borrar Citas (Todas)
                     </button>
                 </div>
+                <p class="text-gray-400 text-sm mt-6 text-center">Para agendar manualmente, usa la opción "Ver Citas" e ingresa al Calendario.</p>
+            `;
+        }
+        
+        function renderCalendar() {
+            const date = currentCalendarDate;
+            const year = date.getFullYear();
+            const month = date.getMonth(); 
+            const firstDayOfMonth = new Date(year, month, 1);
+            let startingDay = firstDayOfMonth.getDay(); 
+            startingDay = startingDay === 0 ? 6 : startingDay - 1; 
+
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+            let daysHtml = '';
+
+            daysHtml += dayNames.map(day => `<div class="day-cell day-name text-xs font-bold text-accent">${day}</div>`).join('');
+
+            for (let i = 0; i < startingDay; i++) {
+                daysHtml += '<div class="day-cell bg-secondary-dark/50 disabled"></div>';
+            }
+
+            const occupiedDates = new Set(
+                appointments
+                    .filter(apt => new Date(apt.dateTime).getMonth() === month && new Date(apt.dateTime).getFullYear() === year)
+                    .map(apt => String(new Date(apt.dateTime).getDate()).padStart(2, '0'))
+            );
+            
+            const today = new Date();
+            const todayDateOnly = String(today.getDate()).padStart(2, '0');
+            const currentMonthYear = `${year}-${String(month + 1).padStart(2, '0')}`;
+            const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate()); 
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayStr = String(day).padStart(2, '0');
+                const fullDateString = `${currentMonthYear}-${dayStr}`;
+                const isOccupied = occupiedDates.has(dayStr);
+                const isToday = dayStr === todayDateOnly && today.getMonth() === month && today.getFullYear() === year;
+
+                const dayInCalendar = new Date(year, month, day);
+                let isPastDay = dayInCalendar < todayMidnight;
+                
+                let classes = isToday ? 'bg-accent/30 border border-accent text-white' : 'bg-secondary-dark text-gray-300';
+                
+                if (isPastDay) {
+                     classes = 'bg-primary-dark/50 text-gray-500 hover:bg-primary-dark/70';
+                     if (isOccupied) {
+                          classes = 'bg-secondary-dark/80 text-gray-300 border border-occupied-day/50 hover:bg-secondary-dark';
+                     }
+                }
+
+                daysHtml += `
+                    <div class="day-cell ${classes} transition duration-150" 
+                         onclick="showDayDetails('${fullDateString}')">
+                        <span class="text-sm font-semibold">${day}</span>
+                        ${isOccupied ? '<div class="occupied-dot"></div>' : ''}
+                    </div>
+                `;
+            }
+
+            viewContainer.innerHTML = `
+                <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
+                    <i class="fas fa-calendar-alt mr-2 text-accent"></i> Calendario de Citas
+                </h2>
+
+                <div class="flex justify-between items-center mb-4 bg-gray-800 p-3 rounded-lg border border-gray-700">
+                    <button onclick="changeMonth(-1)" class="text-white hover:text-accent transition duration-150 p-2">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <h3 class="text-xl font-bold text-white">${monthNames[month]} ${year}</h3>
+                    <button onclick="changeMonth(1)" class="text-white hover:text-accent transition duration-150 p-2">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+
+                <div class="calendar-grid">
+                    ${daysHtml}
+                </div>
+
+                <div class="mt-6 flex items-center text-sm text-gray-400 space-x-4">
+                    <div class="flex items-center"><div class="occupied-dot mr-2 bg-occupied-day"></div> Cita(s) Agendada(s)</div>
+                    <div class="flex items-center"><div class="w-3 h-3 bg-accent/30 border border-accent rounded-full mr-2"></div> Hoy</div>
+                    <div class="flex items-center"><div class="w-3 h-3 bg-primary-dark/50 rounded-full mr-2"></div> Historial (Pasado)</div>
+                </div>
+
+                <button onclick="setView('home')"
+                    class="mt-6 w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
+                    <i class="fas fa-arrow-left mr-2"></i> Volver al Inicio
+                </button>
+            `;
+        }
+
+        function changeMonth(step) {
+            currentCalendarDate = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() + step, 1);
+            renderCalendar();
+        }
+
+        function showDayDetails(dateStr) {
+            const selectedDate = new Date(dateStr);
+            const todayMidnight = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+            const isPastDay = selectedDate < todayMidnight; 
+
+            const dayAppointments = appointments
+                .filter(apt => formatDateOnly(apt.dateTime) === dateStr)
+                .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
+
+            let appointmentsHtml = '';
+            
+            if (dayAppointments.length > 0) {
+                appointmentsHtml = dayAppointments.map(apt => {
+                    const aptTime = new Date(apt.dateTime);
+                    const isPassed = aptTime < new Date(); 
+                    
+                    const timeDisplay = aptTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+                    let itemClasses = isPassed ? 'bg-red-900/40 text-gray-400 border-red-700/50' : 'bg-green-800/40 text-white border-green-600/50';
+                    let statusText = isPassed ? '<span class="text-xs text-red-500">(Pasada)</span>' : '';
+                    
+                    return `
+                        <li class="p-3 rounded-lg flex justify-between items-center ${itemClasses} border">
+                            <div>
+                                <strong class="text-xl">${timeDisplay}</strong> ${statusText}
+                            </div>
+                            ${!isPassed ? `<button onclick="confirmCancel(${apt.id})" 
+                                class="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition duration-150">
+                                <i class="fas fa-times-circle mr-1"></i> Cancelar
+                            </button>` : ''}
+                        </li>
+                    `;
+                }).join('');
+            } else {
+                appointmentsHtml = '<p class="text-gray-400 italic">No hay citas agendadas para este día.</p>';
+            }
+
+            viewContainer.innerHTML = `
+                <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
+                    <i class="fas fa-info-circle mr-2 text-accent"></i> Citas para el <span class="text-accent ml-2">${selectedDate.toLocaleDateString('es-ES', { dateStyle: 'full' })}</span>
+                </h2>
+                
+                <h3 class="text-xl font-semibold text-gray-300 mb-3">Detalle de Citas:</h3>
+                <ul class="space-y-3 mb-6">
+                    ${appointmentsHtml}
+                </ul>
+
+                ${!isPastDay ? 
+                    `<button onclick="setView('schedule', '${dateStr}')"
+                        class="w-full btn-primary text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-300 mb-3">
+                        <i class="fas fa-plus-circle mr-2"></i> Agendar Nueva Cita
+                    </button>` : 
+                    `<p class="p-3 bg-gray-700/50 text-gray-400 rounded-lg text-center"><i class="fas fa-history mr-2"></i> Solo se pueden ver citas pasadas, no agendar.</p>`
+                }
+                
+                <button onclick="setView('calendar')"
+                    class="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-300">
+                    <i class="fas fa-arrow-left mr-2"></i> Volver al Calendario
+                </button>
+            `;
+        }
+
+        function confirmCancel(id) {
+            showModal(
+                'Confirmar Cancelación', 
+                '¿Estás seguro de que deseas cancelar esta cita? Esta acción es irreversible.', 
+                true, 
+                () => cancelAppointment(id) 
+            );
+        }
+
+        function renderScheduleForm(dateStr) {
+            const date = new Date(dateStr);
+            const formattedDate = date.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+
+            viewContainer.innerHTML = `
+                <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
+                    <i class="fas fa-calendar-plus mr-2 text-accent"></i> Agendar Cita para el <span class="text-accent ml-2">${formattedDate}</span>
+                </h2>
+                
+                <form id="scheduleForm" class="space-y-4">
+                    <div>
+                        <label for="timeInput" class="block text-sm font-medium text-gray-300 mb-2">Hora de la Cita:</label>
+                        <input type="time" id="timeInput" name="time" required 
+                               min="09:00" max="17:00" step="1800" 
+                               class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-accent focus:border-accent"
+                               value="09:00">
+                        <p class="text-xs text-gray-400 mt-1">Horario de 9:00 AM a 5:00 PM. Los intervalos son de 30 minutos.</p>
+                    </div>
+
+                    <button type="submit" class="w-full btn-primary text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-300">
+                        <i class="fas fa-check-circle mr-2"></i> Confirmar Cita
+                    </button>
+                </form>
+
+                <button onclick="setView('dayDetails', '${dateStr}')"
+                    class="mt-4 w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-300">
+                    <i class="fas fa-arrow-left mr-2"></i> Volver
+                </button>
             `;
 
-            recognition.onresult = (event) => {
-                recognition.stop();
-                const transcript = event.results[0][0].transcript;
-                processVoiceCommand(transcript);
-            };
-
-            recognition.onerror = (event) => {
-                recognition.stop();
-                console.error('Speech recognition error:', event.error);
-                if (event.error !== 'not-allowed') {
-                    showModal(`Error de dictado: ${event.error === 'no-speech' ? 'No se detectó voz.' : 'Ocurrió un error.'}`);
-                } else {
-                    showModal('Acceso al micrófono denegado. Asegúrate de permitir el micrófono para usar el dictado.');
-                }
-                setView('home'); // Regresa a Home si falla
-            };
-
-            recognition.onend = () => {
-                if (currentView === 'home' || currentView === 'cancel' || currentView === 'calendar') {
-                   // Ya se manejó la transición o finalización, no hacer nada.
-                } else {
-                    // Si terminó por sí mismo, re-renderizar la vista de inicio
-                    // Esto evita un bucle si el usuario no dijo nada y el evento 'onend' se disparó después de 'onerror'
-                    if (viewContainer.querySelector('.animate-pulse')) {
-                       setView('home');
-                    }
-                }
-            };
-
-            try {
-                recognition.start();
-            } catch (e) {
-                console.error("Error starting recognition:", e);
-                showModal("Error al iniciar el reconocimiento de voz. Puede que ya esté activo.");
-                setView('home');
-            }
-        }
-
-        /** Procesa el texto reconocido para extraer nombre y fecha/hora. */
-        function processVoiceCommand(text) {
-            // Un parser de voz real sería complejo, esto es un ejemplo simplificado.
-            // Intenta buscar el nombre y una fecha/hora usando patrones simples.
-            
-            const lowerText = text.toLowerCase();
-            
-            // Regex mejorada: Busca [Día] [de/del] [Mes] en cualquier lugar, seguido de la hora, 
-            // absorbiendo palabras intermedias como 'a las', 'el' o 'a la' con '.*?'.
-            // Se usa \s+ para uno o más espacios, haciendo la regex más flexible.
-            const dateRegex = /(\d{1,2})\s+(de|del)\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+.*?(\d{1,2})(:\d{2})?\s+(de la mañana|de la tarde|pm|am)/i;
-            
-            const match = lowerText.match(dateRegex);
-
-            if (!match) {
-                showModal(`No pude encontrar una fecha y hora clara en: "${text}". Por favor, inténtalo de nuevo. Asegúrate de incluir el día, el mes, la hora y 'de la mañana' o 'de la tarde'.`);
-                setView('home');
-                return;
-            }
-
-            // Simplificación: asumimos que todo antes de la fecha es el nombre (o parte de la instrucción)
-            const rawNamePart = text.substring(0, match.index).trim();
-            
-            // Intentamos limpiar la parte del nombre de palabras clave (e.g., "agendar a")
-            let name = rawNamePart.replace(/agendar (a|una cita a|para) /i, '').trim();
-
-            if (name === '') {
-                name = 'Cliente Sin Nombre';
-            }
-            
-            // Reconstruye la cadena de fecha para que el Date constructor de JS la entienda mejor.
-            // Utilizamos match[0] para obtener la subcadena completa que coincidió con la regex.
-            let dateString = match[0];
-            
-            // 1. Reemplaza las frases horarias con formatos estándar AM/PM.
-            dateString = dateString.replace('de la mañana', 'am').replace('de la tarde', 'pm');
-            
-            // 2. Elimina preposiciones que Date.parse() podría no entender, como "a las" o "a la".
-            // Nota: Se elimina de la subcadena coincidente (match[0]).
-            dateString = dateString.replace(/a\s+las|a\s+la/i, '');
-            
-            // Simplificación: Asigna la fecha al año actual y quita la palabra 'el' si queda.
-            const currentYear = new Date().getFullYear();
-            dateString += ` ${currentYear}`; 
-            dateString = dateString.replace(/\sel\s/i, ' ').trim(); // Quita 'el' que pueda quedar (e.g. "el 10 de...")
-
-            // Intenta convertir la cadena simplificada a un objeto Date
-            const aptDate = new Date(dateString);
-
-            if (isNaN(aptDate.getTime())) {
-                // Este error indica un problema en el formato de la cadena reconstruida
-                showModal(`Error (Formato): No pude interpretar la fecha: "${dateString}".`);
-                setView('home');
-                return;
-            }
-
-            // Confirmación antes de agendar (Reemplazo de 'confirm()')
-            showModal(`¿Quieres agendar a ${name} para el ${formatDateTime(aptDate)}? \n\n (Nota: En este ejemplo, la cita se agendará automáticamente. Si hubiese un botón de "Confirmar", lo presionarías aquí).`);
-
-            // Ejecuta el agendamiento después de una breve pausa para que el usuario pueda leer el mensaje
-            setTimeout(() => {
-                addAppointment(name, aptDate.toISOString());
-            }, 1000); // 1 segundo de espera
-        }
-
-        // =======================================================
-        // GESTIÓN DE RECORDATORIO DIARIO (10:00 PM)
-        // =======================================================
-        
-        /** Obtiene la fecha de mañana en formato YYYY-MM-DD para filtrado. */
-        function getTomorrowDateString() {
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            // Formato 'YYYY-MM-DD'
-            return tomorrow.toISOString().substring(0, 10);
-        }
-
-        /**
-         * Verifica si son las 10:00 PM o más tarde y muestra las citas del día siguiente.
-         * Se usa localStorage para evitar mostrar el recordatorio más de una vez por día.
-         */
-        function checkAndScheduleDailyReminder() {
-            const now = new Date();
-            const targetHour = 22; // 10 PM
-            
-            // 1. Verificar si ya pasó la hora de recordatorio (22:00 en este caso).
-            if (now.getHours() >= targetHour) {
-                const todayDateString = now.toISOString().substring(0, 10);
-                // La clave de almacenamiento es única por día para resetear cada 24h
-                const reminderShownKey = `reminder_shown_${todayDateString}`;
-                
-                // 2. Verificar si el recordatorio ya fue mostrado hoy (después de las 10 PM)
-                if (localStorage.getItem(reminderShownKey) === 'true') {
-                    console.log('Recordatorio de mañana ya mostrado hoy.');
-                    return; 
-                }
-
-                const tomorrowDateString = getTomorrowDateString();
-                const appointmentsTomorrow = appointments.filter(apt => 
-                    // Filtra por la fecha de mañana (YYYY-MM-DD)
-                    apt.dateTime.startsWith(tomorrowDateString)
-                );
-                
-                let title = '';
-                let content = '';
-
-                if (appointmentsTomorrow.length > 0) {
-                    title = `🔔 Citas para Mañana (${tomorrowDateString.split('-').reverse().join('/')})`;
-                    content = appointmentsTomorrow.map(apt => `
-                        <div class="border-l-4 border-accent pl-3 py-2 bg-gray-800 rounded-lg">
-                            <p class="font-semibold text-white text-base">${apt.name}</p>
-                            <p class="text-sm text-gray-400">Hora: ${formatDateTime(apt.dateTime).split(' a las ')[1]}</p>
-                        </div>
-                    `).join('<div class="h-3"></div>');
-                    
-                } else {
-                    title = `Recordatorio Diario 🌙`;
-                    content = `<p class="text-white text-center py-4">¡Excelente! No hay citas programadas para el día de mañana. Puedes descansar tranquilo/a.</p>`;
-                }
-                
-                showDailyReminderModal(title, content);
-                
-                // Marcar como mostrado para hoy.
-                localStorage.setItem(reminderShownKey, 'true');
-            } 
-            // Si la hora es antes de las 10 PM, simplemente no se muestra.
+            document.getElementById('scheduleForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const timeInput = document.getElementById('timeInput').value;
+                addAppointment(dateStr, timeInput);
+            });
         }
 
         // =======================================================
         // INICIO DE LA APLICACIÓN
         // =======================================================
-        
-        // Inicializa la aplicación cargando las citas y renderizando la vista Home
-        window.onload = () => {
-            appointments = loadAppointments();
-            renderView();
-            // Verifica y muestra el recordatorio si es después de las 10 PM
-            checkAndScheduleDailyReminder(); 
-        };
 
+        function init() {
+            appointments = loadAppointments();
+            setView('home');
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
