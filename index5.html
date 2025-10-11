@@ -35,7 +35,7 @@
             min-height: 100vh;
             display: flex;
             justify-content: center;
-            align-items: flex-start; /* Nueva alineación para la cabecera */
+            align-items: flex-start;
             padding-top: 20px;
         }
         .card {
@@ -45,9 +45,9 @@
         /* ESTILO PARA EL CONTENEDOR DE LA IMAGEN DE CABECERA */
         .header-image-container {
             width: 100%;
-            max-height: 150px; /* Ajusta esta altura si es necesario */
+            max-height: 150px;
             overflow: hidden;
-            border-radius: 0.75rem 0.75rem 0 0; /* Bordes redondeados superiores */
+            border-radius: 0.75rem 0.75rem 0 0;
         }
         .header-image {
             width: 100%;
@@ -82,6 +82,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 </head>
 <body>
+    
+    <audio id="reminder-sound" src="alarma.mp3" preload="auto"></audio> 
 
     <div class="w-full max-w-lg mx-4 transition-all duration-300">
         
@@ -126,7 +128,6 @@
         // =======================================================
         const STORAGE_KEY = 'cataleya_appointments_data';
         let currentView = 'home';
-        // Inicializa con la fecha actual para el calendario
         let currentCalendarDate = new Date(); 
         let appointments = [];
         let recognition = null;
@@ -141,6 +142,9 @@
         const viewContainer = document.getElementById('view-container');
         const messageModal = document.getElementById('message-modal');
         const modalText = document.getElementById('modal-text');
+        // Referencia al elemento de audio
+        const reminderSound = document.getElementById('reminder-sound');
+
 
         // =======================================================
         // UTILERÍAS GLOBALES
@@ -236,7 +240,7 @@
         function changeMonth(offset) {
             const newDate = currentCalendarDate;
             newDate.setMonth(newDate.getMonth() + offset);
-            newDate.setDate(1); // Mantiene el día en 1 para evitar saltos de mes (ej. 31 de Ene a Mar)
+            newDate.setDate(1);
             currentCalendarDate = newDate;
             renderCalendar();
         }
@@ -267,7 +271,6 @@
                 content = `<p class="text-white text-center py-4">¡Día libre! No hay citas agendadas.</p>`;
             }
              
-            // Reutiliza la función para mostrar el modal de recordatorio/detalles
             document.getElementById('reminder-title').textContent = title;
             document.getElementById('reminder-content').innerHTML = content;
             document.getElementById('reminder-modal').classList.remove('hidden');
@@ -280,7 +283,6 @@
 
         function setView(viewName) {
             currentView = viewName;
-            // Al entrar a la vista de calendario, asegura que muestre el mes actual
             if (viewName === 'calendar') {
                  currentCalendarDate = new Date();
                  currentCalendarDate.setDate(1);
@@ -315,22 +317,17 @@
         /** Renderiza la vista de Calendario en formato de cuadrícula mensual */
         function renderCalendar() {
             const today = new Date();
-            today.setHours(0, 0, 0, 0); // Normaliza el "hoy" para comparación
+            today.setHours(0, 0, 0, 0);
 
-            // Obtiene el mes y año que estamos viendo
             const calendarMonth = currentCalendarDate.getMonth();
             const calendarYear = currentCalendarDate.getFullYear();
 
-            // 1. Encontrar el primer día del mes que estamos viendo
             const firstDayOfMonth = new Date(calendarYear, calendarMonth, 1);
-            // 2. Determinar qué día de la semana es (Lun=0, Dom=6)
             let startingDay = firstDayOfMonth.getDay();
-            if (startingDay === 0) startingDay = 6; else startingDay--; // Lunes = 0, Domingo = 6
+            if (startingDay === 0) startingDay = 6; else startingDay--;
 
-            // 3. Obtener el número de días en el mes
             const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
             
-            // 4. Agrupar las citas por día
             const appointmentsByDay = appointments.reduce((acc, apt) => {
                 const aptDate = new Date(apt.dateTime);
                 const dateKey = aptDate.toISOString().substring(0, 10);
@@ -343,7 +340,6 @@
             
             let daysHTML = '';
 
-            // 5. Rellenar los días vacíos del mes anterior (para que empiece el Lunes correcto)
             const daysInPrevMonth = new Date(calendarYear, calendarMonth, 0).getDate();
             for (let i = 0; i < startingDay; i++) {
                 const dayNumber = daysInPrevMonth - startingDay + i + 1;
@@ -355,7 +351,6 @@
                 `;
             }
 
-            // 6. Generar los días del mes actual
             for (let day = 1; day <= daysInMonth; day++) {
                 const currentDate = new Date(calendarYear, calendarMonth, day);
                 const dateKey = currentDate.toISOString().substring(0, 10);
@@ -364,7 +359,6 @@
                 const isToday = today.toDateString() === currentDate.toDateString();
                 const hasAppointments = dayAppointments.length > 0;
 
-                // Clases dinámicas
                 let dayClass = 'bg-day-base border border-gray-700 active-month';
                 if (isToday) {
                     dayClass = 'bg-day-current border-2 border-accent shadow-lg shadow-violet-700/20 active-month';
@@ -395,9 +389,8 @@
                 `;
             }
             
-            // 7. Rellenar los días restantes del mes siguiente
             const totalDaysRendered = startingDay + daysInMonth;
-            const remainingCells = 42 - totalDaysRendered; // Muestra hasta 6 filas
+            const remainingCells = 42 - totalDaysRendered;
 
             for (let i = 1; i <= remainingCells && (totalDaysRendered + i) <= 42; i++) {
                 daysHTML += `
@@ -437,8 +430,7 @@
                 <div class="grid grid-cols-7 gap-1.5 max-h-[60vh] overflow-y-auto custom-scrollbar p-1">
                     ${daysHTML}
                 </div>
-                
-                `;
+            `;
         }
 
         function renderCancel() {
@@ -506,9 +498,6 @@
                 return;
             }
 
-            // ******************************************************************
-            // CAMBIO SOLICITADO: Restauración de la validación de duplicados
-            // ******************************************************************
             const isDuplicate = appointments.some(apt => apt.dateTime === newDateTimeString);
 
             if (isDuplicate) {
@@ -628,7 +617,6 @@
 
             showModal(`✅ ¿Quieres agendar a ${name} para el ${formatDateTime(aptDate)}?`);
 
-            // El control de si se añade o no la cita se hace dentro de addAppointment
             setTimeout(() => { addAppointment(name, aptDate.toISOString()); }, 1000); 
         }
 
@@ -665,12 +653,25 @@
                         const timeDisplay = aptDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
                         return `<div class="border-l-4 border-accent pl-3 py-2 bg-gray-800 rounded-lg"><p class="font-semibold text-white text-base">${apt.name}</p><p class="text-sm text-gray-400">Hora: ${timeDisplay}</p></div>`;
                     }).join('<div class="h-3"></div>');
+                    
+                    // ************ INICIO: Lógica de Alarma Auditiva ************
+                    try {
+                        // Reproduce el sonido de la etiqueta <audio>
+                        if (reminderSound) {
+                            reminderSound.currentTime = 0; // Reinicia el sonido por si estaba a medias
+                            reminderSound.play();
+                        }
+                    } catch (error) {
+                         console.warn("No se pudo reproducir el sonido. Posiblemente por restricciones del navegador (requiere interacción previa): ", error);
+                    }
+                    // ************ FIN: Lógica de Alarma Auditiva ************
+                    
                 } else {
                     title = `Recordatorio Diario 🌙`;
                     content = `<p class="text-white text-center py-4">¡Excelente! No hay citas programadas para el día de mañana.</p>`;
                 }
                  
-                // Reutiliza showDayDetails para mostrar el recordatorio
+                // Reutiliza showDayDetails para mostrar el recordatorio visual
                 document.getElementById('reminder-title').textContent = title;
                 document.getElementById('reminder-content').innerHTML = content;
                 document.getElementById('reminder-modal').classList.remove('hidden');
@@ -686,7 +687,7 @@
             appointments = loadAppointments();
             renderView();
             checkAndScheduleDailyReminder();
-            // Ejecuta la comprobación cada 5 minutos para el recordatorio nocturno
+            // Ejecuta la comprobación cada 5 minutos (300000ms) para el recordatorio nocturno
             setInterval(checkAndScheduleDailyReminder, 300000); 
         });
 
