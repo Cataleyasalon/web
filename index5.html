@@ -412,11 +412,11 @@
                 <div class="flex justify-between items-center mb-4 relative w-full">
                     
                     <button onclick="setView('home')"
-                        class="bg-cancel hover:bg-red-600 text-white font-semibold py-2 px-3 rounded-lg transition duration-300 text-sm flex items-center z-10 border border-red-500/70">
+                        class="bg-accent hover:bg-accent-hover text-white font-semibold py-2 px-3 rounded-lg transition duration-300 text-sm flex items-center z-10 border border-accent/70 mr-1">
                         <i class="fas fa-arrow-left mr-1"></i> Volver
                     </button>
 
-                    <h2 class="text-xl font-bold text-white uppercase absolute left-1/2 transform -translate-x-1/2 flex items-center whitespace-nowrap px-4 pointer-events-none">
+                    <h2 class="text-xl font-bold text-white uppercase absolute left-1/2 transform -translate-x-1/2 flex items-center whitespace-nowrap px-10 pointer-events-none">
                         ${monthYearTitle}
                     </h2>
 
@@ -498,15 +498,28 @@
                 name: name.trim(),
                 dateTime: new Date(dateString).toISOString()
             };
+            
+            const newDateTimeString = newAppointment.dateTime;
 
-            if (new Date(newAppointment.dateTime) < Date.now()) {
+            if (new Date(newDateTimeString) < Date.now()) {
                 showModal('¡Error! No puedes agendar una cita en el pasado.');
+                return;
+            }
+
+            // ******************************************************************
+            // CAMBIO SOLICITADO: Restauración de la validación de duplicados
+            // ******************************************************************
+            const isDuplicate = appointments.some(apt => apt.dateTime === newDateTimeString);
+
+            if (isDuplicate) {
+                showModal(`⚠️ ¡ADVERTENCIA! Ya existe una cita agendada para la fecha y hora: ${formatDateTime(newDateTimeString)}. No se agregó la cita de ${name}.`);
+                setView('home');
                 return;
             }
 
             appointments.push(newAppointment);
             saveAppointments(appointments);
-            showModal(`¡Cita agendada! ${name} el ${formatDateTime(newAppointment.dateTime)}.`);
+            showModal(`✅ ¡Cita agendada! ${name} el ${formatDateTime(newAppointment.dateTime)}.`);
             setView('home');
         }
 
@@ -615,6 +628,7 @@
 
             showModal(`✅ ¿Quieres agendar a ${name} para el ${formatDateTime(aptDate)}?`);
 
+            // El control de si se añade o no la cita se hace dentro de addAppointment
             setTimeout(() => { addAppointment(name, aptDate.toISOString()); }, 1000); 
         }
 
