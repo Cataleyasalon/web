@@ -409,18 +409,18 @@
             }
 
             viewContainer.innerHTML = `
-                <div class="flex justify-between items-center mb-4 relative">
+                <div class="flex justify-between items-center mb-4 relative w-full">
                     
                     <button onclick="setView('home')"
-                        class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-3 rounded-lg transition duration-300 text-sm flex items-center z-10">
+                        class="bg-cancel hover:bg-red-600 text-white font-semibold py-2 px-3 rounded-lg transition duration-300 text-sm flex items-center z-10 border border-red-500/70">
                         <i class="fas fa-arrow-left mr-1"></i> Volver
                     </button>
 
-                    <h2 class="text-xl font-bold text-white uppercase absolute left-1/2 transform -translate-x-1/2 flex items-center">
+                    <h2 class="text-xl font-bold text-white uppercase absolute left-1/2 transform -translate-x-1/2 flex items-center whitespace-nowrap px-4 pointer-events-none">
                         ${monthYearTitle}
                     </h2>
 
-                    <div class="flex ml-auto z-10">
+                    <div class="flex ml-auto z-10 space-x-2">
                         <button onclick="changeMonth(-1)" class="text-accent hover:text-accent-hover text-2xl p-1 transition duration-150">
                             <i class="fas fa-chevron-left"></i>
                         </button>
