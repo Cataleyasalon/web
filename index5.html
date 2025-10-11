@@ -404,11 +404,11 @@
                 <div class="flex justify-between items-center mb-4 relative w-full">
                     
                     <button onclick="setView('home')"
-                        class="bg-accent hover:bg-accent-hover text-white font-semibold py-1.5 px-2.5 rounded-md transition duration-300 text-xs flex items-center z-10 border border-accent/70 mr-1">
-                        <i class="fas fa-arrow-left mr-1"></i> Volver
+                        class="bg-accent hover:bg-accent-hover text-white font-semibold p-2 rounded-lg transition duration-300 text-base flex items-center z-10 border border-accent/70 mr-1">
+                        <i class="fas fa-arrow-left"></i>
                     </button>
 
-                    <h2 class="text-lg font-bold text-white uppercase absolute left-1/2 transform -translate-x-1/2 flex items-center whitespace-nowrap px-10 pointer-events-none">
+                    <h2 class="text-base font-bold text-white uppercase absolute left-1/2 transform -translate-x-1/2 flex items-center whitespace-nowrap px-10 pointer-events-none">
                         ${monthYearTitle}
                     </h2>
 
@@ -429,6 +429,7 @@
                 <div class="grid grid-cols-7 gap-1.5 max-h-[70vh] overflow-y-auto custom-scrollbar p-1">
                     ${daysHTML}
                 </div>
+
             `;
         }
 
