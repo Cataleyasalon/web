@@ -1,6 +1,6 @@
 // service-worker.js
 
-const CACHE_NAME = 'cataleya-cache-v7'; // Versión 7 para forzar la actualización
+const CACHE_NAME = 'cataleya-cache-v8'; // Versión 8 para forzar la actualización
 const urlsToCache = [
     // La ruta debe ser relativa desde la raíz del Service Worker
     './', // Ruta raíz para el Service Worker
@@ -21,30 +21,39 @@ let alarmInterval = null;
 // =======================================================
 
 /**
- * Chequea si alguna cita está entre 0 y 30 minutos a partir de ahora.
+ * Chequea si alguna cita está entre 1 y 3 minutos a partir de ahora.
  * Dispara la notificación del sistema operativo.
  */
 function checkAppointments() {
-    console.log('[Service Worker v7] Chequeando citas...');
+    console.log('[Service Worker v8] Chequeando citas...');
     const now = Date.now();
-    // Ventana: entre 0 y 30 minutos
-    const thirtyMinutes = 30 * 60 * 1000;
-    const timeWindowEnd = now + thirtyMinutes;
+    
+    // ?? VENTANA DE ACTIVACIÓN DE LA ALARMA: [3 minutos antes, 1 minuto antes)
+    const THREE_MINUTES_MS = 3 * 60 * 1000;
+    const ONE_MINUTE_MS = 1 * 60 * 1000;
 
     storedAppointments.forEach(apt => {
         const aptTime = new Date(apt.dateTime).getTime();
         
-        // 1. Verificar si la cita está dentro de la ventana (0 a 30 minutos)
-        if (aptTime > now && aptTime <= timeWindowEnd) {
+        // Calcule el inicio y fin de la ventana de activación de la alarma
+        // Si 'now' cae en este rango, se dispara la notificación.
+        const notificationStartTime = aptTime - THREE_MINUTES_MS; // 3 minutos antes
+        const notificationEndTime = aptTime - ONE_MINUTE_MS;     // 1 minuto antes (Excluido)
+
+        // 1. Verificar si el tiempo actual (now) está dentro de la ventana de activación.
+        if (aptTime > now && now >= notificationStartTime && now < notificationEndTime) {
             
             // 2. Verificar si ya fue notificada
             if (!notifiedAppointmentIds.includes(apt.id)) {
                 
                 const timeDisplay = new Date(apt.dateTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-                const minutesLeft = Math.ceil((aptTime - now) / 60000);
-
+                
+                // Calcular los minutos restantes para el mensaje (debería ser 2 o 3)
+                const timeDifference = aptTime - now;
+                const minutesLeft = Math.ceil(timeDifference / 60000); 
+                
                 const options = {
-                    body: `La cita con ${apt.name} es a las ${timeDisplay}. Quedan ${minutesLeft} minutos.`,
+                    body: `La cita con ${apt.name} es a las ${timeDisplay}. Faltan ${minutesLeft} minutos.`,
                     icon: 'icono192.png', 
                     tag: `cita-proxima-${apt.id}`, 
                     sound: 'alarma.mp3', 
@@ -53,8 +62,8 @@ function checkAppointments() {
 
                 // Mostrar la notificación
                 self.registration.showNotification('?? ALARMA DE CITA PRÓXIMA ??', options)
-                    .then(() => console.log(`[Service Worker v7] Notificación mostrada para ${apt.name}`))
-                    .catch(e => console.error("[Service Worker v7] Error al mostrar notificación:", e));
+                    .then(() => console.log(`[Service Worker v8] Notificación mostrada para ${apt.name}`))
+                    .catch(e => console.error("[Service Worker v8] Error al mostrar notificación:", e));
                 
                 // Marcar como notificada
                 notifiedAppointmentIds.push(apt.id);
@@ -70,18 +79,18 @@ function startAlarmTimer() {
     if (alarmInterval) { clearInterval(alarmInterval); } 
     
     checkAppointments(); 
-    // ?? Cambio CRÍTICO: 120000ms = 2 minutos
+    // Mantenemos el chequeo cada 2 minutos (120000 ms)
     alarmInterval = setInterval(checkAppointments, 120000); 
-    console.log('[Service Worker v7] Temporizador de alarma iniciado (cada 2 minutos).');
+    console.log('[Service Worker v8] Temporizador de alarma iniciado (cada 2 minutos).');
 }
 
 // =======================================================
-// MANEJO DE EVENTOS ESTÁNDAR DEL SW
+// MANEJO DE EVENTOS ESTÁNDAR DEL SW (Sin Cambios)
 // =======================================================
 
 // Evento: Instalación
 self.addEventListener('install', event => {
-  console.log('[Service Worker v7] Instalando y precacheando...');
+  console.log('[Service Worker v8] Instalando y precacheando...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
