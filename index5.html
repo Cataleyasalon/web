@@ -578,3 +578,254 @@
                 </h2>
                 <div class="max-h-80 overflow-y-auto custom-scrollbar pr-2">
                     ${content}
+                </div>
+                <button onclick="setView('home')"
+                    class="mt-6 w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
+                    <i class="fas fa-arrow-left mr-2"></i> Volver
+                </button>
+            `;
+        }
+
+        function renderView() {
+            appointments = loadAppointments();
+            if (recognition) { recognition.stop(); }
+             
+            try {
+                switch (currentView) {
+                    case 'calendar': renderCalendar(); break;
+                    case 'cancel': renderCancel(); break;
+                    case 'manualAdd': renderManualAdd(); break; 
+                    case 'home': default: renderHome(); break;
+                }
+            } catch (e) {
+                console.error("Fallo crítico en renderView:", e);
+                viewContainer.innerHTML = `<div class="text-center py-10"><p class="text-xl text-red-500 font-bold">¡ERROR! La aplicación ha fallado al cargar. (Ver consola)</p></div>`;
+            }
+        }
+
+        // =======================================================
+        // GESTIÓN DE CITAS Y VOZ
+        // =======================================================
+        
+        function manualAddAppointment(name, dateTimeLocalString) {
+            if (!name || !dateTimeLocalString) {
+                showModal('Error: Faltan campos obligatorios.');
+                return;
+            }
+
+            const aptDate = new Date(dateTimeLocalString);
+            
+            if (isNaN(aptDate.getTime())) {
+                showModal('Error: Formato de fecha y hora inválido.');
+                return;
+            }
+
+            addAppointment(name, aptDate.toISOString());
+        }
+
+        function addAppointment(name, dateString) {
+            const newAppointment = {
+                id: crypto.randomUUID(),
+                name: name.trim(),
+                dateTime: new Date(dateString).toISOString()
+            };
+            
+            const newDateTimeString = newAppointment.dateTime;
+
+            if (new Date(newDateTimeString) < Date.now()) {
+                showModal('¡Error! No puedes agendar una cita en el pasado.');
+                return;
+            }
+
+            const isDuplicate = appointments.some(apt => apt.dateTime === newDateTimeString);
+
+            if (isDuplicate) {
+                showModal(`⚠️ ¡ADVERTENCIA! Ya existe una cita agendada para la fecha y hora: ${formatDateTime(newDateTimeString)}. No se agregó la cita de ${name}.`);
+                setView('home');
+                return;
+            }
+
+            appointments.push(newAppointment);
+            saveAppointments(appointments); // saveAppointments llama a sendAppointmentsToSW()
+            showModal(`✅ ¡Cita agendada! ${name} el ${formatDateTime(newAppointment.dateTime)}.`);
+            setView('home');
+        }
+
+        function confirmCancelAppointment(id) {
+            const aptToCancel = appointments.find(apt => apt.id === id);
+            if (!aptToCancel) { showModal('Error: Cita no encontrada.'); renderCancel(); return; }
+             
+            appointments = appointments.filter(apt => apt.id !== id);
+            saveAppointments(appointments); // saveAppointments llama a sendAppointmentsToSW()
+            showModal(`La cita de ${aptToCancel.name} ha sido cancelada.`);
+            renderCancel();
+        }
+
+        function startSpeechRecognition() {
+            // ... [código de reconocimiento de voz] ...
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                showModal('Tu navegador no soporta la función de dictado.');
+                return;
+            }
+
+            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = 'es-ES';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            viewContainer.innerHTML = `
+                <div class="text-center p-6 bg-secondary-dark rounded-lg border border-accent">
+                    <p class="text-xl font-semibold text-white mb-4">Escuchando...</p>
+                    <i class="fas fa-microphone-alt animate-pulse text-5xl text-accent mb-4"></i>
+                    <p class="text-gray-400">Di el nombre y la hora de la cita, por ejemplo:</p>
+                    <p class="text-sm font-mono text-gray-500">"Agendar a Juan Pérez el 10 de octubre a las 3 de la tarde"</p>
+                    <button onclick="setView('home')" class="mt-6 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
+                        <i class="fas fa-stop mr-2"></i> Cancelar Dictado
+                    </button>
+                </div>
+            `;
+
+            recognition.onresult = (event) => {
+                recognition.stop();
+                const transcript = event.results[0][0].transcript;
+                processVoiceCommand(transcript);
+            };
+
+            recognition.onerror = (event) => {
+                recognition.stop();
+                if (event.error !== 'not-allowed') {
+                    showModal(`Error de dictado: ${event.error === 'no-speech' ? 'No se detectó voz.' : 'Ocurrió un error.'}`);
+                } else {
+                    showModal('Acceso al micrófono denegado. (Se requiere HTTPS o localhost)');
+                }
+                setView('home');
+            };
+
+            recognition.onend = () => {
+                if (currentView !== 'home' && currentView !== 'cancel' && currentView !== 'calendar' && currentView !== 'manualAdd') {
+                   if (viewContainer.querySelector('.animate-pulse')) { setView('home'); }
+                }
+            };
+
+            try { recognition.start(); } catch (e) { showModal("Error al iniciar el reconocimiento de voz."); setView('home'); }
+        }
+
+        function processVoiceCommand(text) {
+            // ... [código de procesamiento de voz] ...
+            const lowerText = text.toLowerCase();
+            const dateRegex = /(el\s+)?(\d{1,2})\s+(de|del)\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre).*?(a\s+(la|las)\s+)?(\d{1,2})(:\d{2})?\s*(de la mañana|am|de la tarde|pm|noche|madrugada)?/i;
+            const match = lowerText.match(dateRegex);
+
+            if (!match) {
+                showModal(`❌ No pude encontrar una fecha y hora clara en: "${text}". Por favor, intenta decir "el [día] de [mes] a las [hora] de la [mañana/tarde]".`);
+                setView('home');
+                return;
+            }
+
+            const rawNamePart = text.substring(0, match.index).trim();
+            let name = rawNamePart.replace(/agendar (a|una cita a|para) /i, '').trim();
+            if (name === '') { name = 'Cliente Sin Nombre'; }
+             
+            const day = parseInt(match[2]);
+            const monthName = match[4]; 
+            let hour = parseInt(match[7]);
+            const minutes = match[8] ? parseInt(match[8].substring(1)) : 0;
+            const period = match[9] || '';
+
+            const monthIndex = monthMap[monthName];
+            const now = new Date();
+            let currentYear = now.getFullYear();
+             
+            const isPM = period.includes('tarde') || period.includes('pm') || period.includes('noche');
+            const isAM = period.includes('mañana') || period.includes('am') || period.includes('madrugada');
+
+            if (isPM && hour < 12) { hour += 12; } 
+            else if ((isAM || period === '') && hour === 12) { hour = 0; }
+             
+            let aptDate = new Date(currentYear, monthIndex, day, hour, minutes, 0);
+
+            if (aptDate < now) {
+                 if (aptDate.getMonth() < now.getMonth() || (aptDate.getMonth() === now.getMonth() && aptDate.getTime() < now.getTime())) {
+                      aptDate = new Date(currentYear + 1, monthIndex, day, hour, minutes, 0);
+                 }
+            }
+
+            if (isNaN(aptDate.getTime()) || aptDate.getMonth() !== monthIndex || aptDate.getDate() !== day || aptDate < now) {
+                showModal('❌ Error: La hora y fecha especificadas son inválidas o ya pasaron.');
+                setView('home');
+                return;
+            }
+
+            showModal(`✅ ¿Quieres agendar a ${name} para el ${formatDateTime(aptDate)}?`);
+
+            setTimeout(() => { addAppointment(name, aptDate.toISOString()); }, 1000); 
+        }
+
+        // =======================================================
+        // GESTIÓN DE RECORDATORIO DIARIO (22:00 / 10:00 PM) - Mantenido en el cliente
+        // =======================================================
+        function getTomorrowDateString() {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            return tomorrow.toISOString().substring(0, 10);
+        }
+
+        function checkAndScheduleDailyReminder() {
+            // Solo se muestra si la aplicación está abierta. La alarma de 30 minutos es en el SW.
+            const now = new Date();
+            const targetHour = 22; 
+             
+            if (now.getHours() === targetHour && now.getMinutes() < 5) {
+                const todayDateString = now.toISOString().substring(0, 10);
+                const reminderShownKey = `reminder_shown_${todayDateString}`;
+                 
+                if (localStorage.getItem(reminderShownKey) === 'true') { return; }
+
+                const tomorrowDateString = getTomorrowDateString();
+                const appointmentsTomorrow = appointments.filter(apt => apt.dateTime.startsWith(tomorrowDateString));
+                
+                let title = '';
+                let content = '';
+
+                if (appointmentsTomorrow.length > 0) {
+                    title = `🔔 Citas para Mañana (${tomorrowDateString.split('-').reverse().join('/')})`;
+                    content = appointmentsTomorrow.map(apt => {
+                        const aptDate = new Date(apt.dateTime);
+                        const timeDisplay = aptDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                        return `<div class="border-l-4 border-accent pl-3 py-2 bg-gray-800 rounded-lg"><p class="font-semibold text-white text-base">${apt.name}</p><p class="text-sm text-gray-400">Hora: ${timeDisplay}</p></div>`;
+                    }).join('<div class="h-3"></div>');
+                    
+                    playReminderSound();
+                    
+                } else {
+                    title = `Recordatorio Diario 🌙`;
+                    content = `<p class="text-white text-center py-4">¡Excelente! No hay citas programadas para el día de mañana.</p>`;
+                }
+                 
+                document.getElementById('reminder-title').textContent = title;
+                document.getElementById('reminder-content').innerHTML = content;
+                document.getElementById('reminder-modal').classList.remove('hidden');
+                 
+                localStorage.setItem(reminderShownKey, 'true');
+            } 
+        }
+
+
+        // =======================================================
+        // INICIO DE LA APLICACIÓN
+        // =======================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            appointments = loadAppointments();
+            renderView();
+            
+            // CRÍTICO: Solicitamos permiso y enviamos citas al Service Worker
+            requestNotificationPermission(); 
+            
+            // Intervalo de 5 minutos para el recordatorio diario (10 PM), solo si la app está abierta.
+            checkAndScheduleDailyReminder();
+            setInterval(checkAndScheduleDailyReminder, 300000); 
+        });
+
+    </script>
+</body>
+</html>
