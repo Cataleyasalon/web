@@ -175,6 +175,19 @@
              const d = new Date(date);
              return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
         }
+        
+        // MODIFICACIÓN: Función para reproducir el sonido y manejar posibles errores.
+        function playReminderSound() {
+            try {
+                if (reminderSound) {
+                    reminderSound.currentTime = 0;
+                    reminderSound.play();
+                }
+            } catch (error) {
+                 console.warn("No se pudo reproducir el sonido. Posiblemente por restricciones del navegador (requiere interacción previa): ", error);
+            }
+        }
+
 
         // =======================================================
         // GESTIÓN DE LOCALSTORAGE
@@ -249,6 +262,7 @@
             const dayAppointments = appointments.filter(apt => apt.dateTime.startsWith(dateKey));
              
             const dateParts = dateKey.split('-');
+            // MODIFICACIÓN: Usar año, mes-1, día para construir la fecha.
             const displayDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
 
             const title = `Citas para el ${displayDate}`;
@@ -297,6 +311,12 @@
                         <i class="fas fa-microphone text-2xl mr-3"></i>
                         AGENDAR CITA (DICTADO)
                     </button>
+                    
+                    <button onclick="setView('manualAdd')"
+                        class="w-full bg-secondary-dark hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 flex items-center justify-center border border-gray-700">
+                        <i class="fas fa-keyboard mr-3"></i>
+                        AGENDAR CITA (MANUAL)
+                    </button>
 
                     <button onclick="setView('calendar')"
                         class="w-full bg-secondary-dark hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 flex items-center justify-center border border-gray-700">
@@ -311,6 +331,54 @@
                     </button>
                 </div>
             `;
+        }
+
+        // MODIFICACIÓN: Nueva vista para agendar manualmente
+        function renderManualAdd() {
+            // Obtiene la fecha y hora actual en el formato YYYY-MM-DDTHH:MM
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const defaultDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+
+            viewContainer.innerHTML = `
+                <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
+                    <i class="fas fa-keyboard mr-2 text-accent"></i> Agendar Manualmente
+                </h2>
+                <form id="manual-add-form" class="space-y-4">
+                    <div>
+                        <label for="client-name" class="block text-sm font-medium text-gray-400 mb-1">Nombre del Cliente</label>
+                        <input type="text" id="client-name" name="name" required
+                            class="w-full p-3 rounded-lg bg-gray-800 text-white border border-gray-700 focus:ring-accent focus:border-accent"
+                            placeholder="Ej: Juan Pérez">
+                    </div>
+                    <div>
+                        <label for="appointment-datetime" class="block text-sm font-medium text-gray-400 mb-1">Fecha y Hora</label>
+                        <input type="datetime-local" id="appointment-datetime" name="datetime" required
+                            class="w-full p-3 rounded-lg bg-gray-800 text-white border border-gray-700 focus:ring-accent focus:border-accent"
+                            value="${defaultDateTime}">
+                    </div>
+                    
+                    <button type="submit"
+                        class="w-full bg-accent hover:bg-accent-hover text-white font-extrabold py-3 px-6 rounded-lg transition duration-300 transform hover:scale-[1.01] shadow-md shadow-violet-700/50 flex items-center justify-center">
+                        <i class="fas fa-check-circle mr-2"></i> Confirmar Cita
+                    </button>
+                    <button type="button" onclick="setView('home')"
+                        class="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
+                        <i class="fas fa-arrow-left mr-2"></i> Cancelar y Volver
+                    </button>
+                </form>
+            `;
+
+            document.getElementById('manual-add-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = e.target.elements.name.value;
+                const datetime = e.target.elements.datetime.value;
+                manualAddAppointment(name, datetime);
+            });
         }
 
         /** Renderiza la vista de Calendario en formato de cuadrícula mensual */
@@ -329,7 +397,9 @@
             
             const appointmentsByDay = appointments.reduce((acc, apt) => {
                 const aptDate = new Date(apt.dateTime);
-                const dateKey = aptDate.toISOString().substring(0, 10);
+                // MODIFICACIÓN: Asegurar que el dateKey sea YYYY-MM-DD
+                const dateKey = aptDate.getFullYear() + '-' + String(aptDate.getMonth() + 1).padStart(2, '0') + '-' + String(aptDate.getDate()).padStart(2, '0');
+                
                 if (!acc[dateKey]) { acc[dateKey] = []; }
                 acc[dateKey].push(apt);
                 return acc;
@@ -352,7 +422,12 @@
 
             for (let day = 1; day <= daysInMonth; day++) {
                 const currentDate = new Date(calendarYear, calendarMonth, day);
-                const dateKey = currentDate.toISOString().substring(0, 10);
+                // MODIFICACIÓN: Asegurar formato de fecha para la clave YYYY-MM-DD
+                const yearStr = currentDate.getFullYear();
+                const monthStr = String(currentDate.getMonth() + 1).padStart(2, '0');
+                const dayStr = String(day).padStart(2, '0');
+                const dateKey = `${yearStr}-${monthStr}-${dayStr}`;
+
                 const dayAppointments = (appointmentsByDay[dateKey] || []).sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
                 
                 const isToday = today.toDateString() === currentDate.toDateString();
@@ -472,6 +547,7 @@
                 switch (currentView) {
                     case 'calendar': renderCalendar(); break;
                     case 'cancel': renderCancel(); break;
+                    case 'manualAdd': renderManualAdd(); break; // MODIFICACIÓN: Nueva vista
                     case 'home': default: renderHome(); break;
                 }
             } catch (e) {
@@ -483,7 +559,24 @@
         // =======================================================
         // GESTIÓN DE CITAS Y VOZ
         // =======================================================
-         
+        
+        function manualAddAppointment(name, dateTimeLocalString) {
+            if (!name || !dateTimeLocalString) {
+                showModal('Error: Faltan campos obligatorios.');
+                return;
+            }
+
+            const aptDate = new Date(dateTimeLocalString);
+            
+            if (isNaN(aptDate.getTime())) {
+                showModal('Error: Formato de fecha y hora inválido.');
+                return;
+            }
+
+            // Llamamos a la función genérica con la fecha en formato ISO
+            addAppointment(name, aptDate.toISOString());
+        }
+
         function addAppointment(name, dateString) {
             const newAppointment = {
                 id: crypto.randomUUID(),
@@ -491,6 +584,7 @@
                 dateTime: new Date(dateString).toISOString()
             };
             
+
             const newDateTimeString = newAppointment.dateTime;
 
             if (new Date(newDateTimeString) < Date.now()) {
@@ -562,7 +656,7 @@
             };
 
             recognition.onend = () => {
-                if (currentView !== 'home' && currentView !== 'cancel' && currentView !== 'calendar') {
+                if (currentView !== 'home' && currentView !== 'cancel' && currentView !== 'calendar' && currentView !== 'manualAdd') {
                    if (viewContainer.querySelector('.animate-pulse')) { setView('home'); }
                 }
             };
@@ -621,9 +715,16 @@
         }
 
         // =======================================================
-        // GESTIÓN DE RECORDATORIO DIARIO (10:00 PM)
+        // GESTIÓN DE RECORDATORIO DIARIO (10:00 PM) Y PRÓXIMAS CITAS (CADA 30 MIN)
         // =======================================================
-         
+        
+        // MODIFICACIÓN: Función genérica para mostrar el modal de recordatorios (usado también por showDayDetails)
+        function showReminderModal(title, content) {
+            document.getElementById('reminder-title').textContent = title;
+            document.getElementById('reminder-content').innerHTML = content;
+            document.getElementById('reminder-modal').classList.remove('hidden');
+        }
+
         function getTomorrowDateString() {
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
@@ -642,7 +743,12 @@
 
                 const tomorrowDateString = getTomorrowDateString();
                 const appointmentsTomorrow = appointments.filter(apt => apt.dateTime.startsWith(tomorrowDateString));
-                 
+                
+                // Si la vista actual es diferente a la de inicio, calendario o cancelar, no mostramos el modal diario
+                if (['home', 'calendar', 'cancel', 'manualAdd'].includes(currentView)) {
+                    // La lógica para mostrar el modal diario aquí es la misma que antes
+                }
+
                 let title = '';
                 let content = '';
 
@@ -654,27 +760,54 @@
                         return `<div class="border-l-4 border-accent pl-3 py-2 bg-gray-800 rounded-lg"><p class="font-semibold text-white text-base">${apt.name}</p><p class="text-sm text-gray-400">Hora: ${timeDisplay}</p></div>`;
                     }).join('<div class="h-3"></div>');
                     
-                    try {
-                        if (reminderSound) {
-                            reminderSound.currentTime = 0;
-                            reminderSound.play();
-                        }
-                    } catch (error) {
-                         console.warn("No se pudo reproducir el sonido. Posiblemente por restricciones del navegador (requiere interacción previa): ", error);
-                    }
+                    playReminderSound();
                     
                 } else {
                     title = `Recordatorio Diario 🌙`;
                     content = `<p class="text-white text-center py-4">¡Excelente! No hay citas programadas para el día de mañana.</p>`;
                 }
                  
-                document.getElementById('reminder-title').textContent = title;
-                document.getElementById('reminder-content').innerHTML = content;
-                document.getElementById('reminder-modal').classList.remove('hidden');
-                 
+                showReminderModal(title, content);
                 localStorage.setItem(reminderShownKey, 'true');
             } 
         }
+        
+        /** MODIFICACIÓN: Nuevo sistema de recordatorio de citas próximas (cada 30 min) */
+        function checkUpcomingAppointments() {
+            // Recargar citas para asegurar que la lista esté actualizada
+            appointments = loadAppointments(); 
+            
+            const now = Date.now();
+            // 30 minutos en milisegundos
+            const thirtyMinutes = 30 * 60 * 1000;
+            const timeWindowEnd = now + thirtyMinutes;
+
+            const upcomingAppointments = appointments.filter(apt => {
+                const aptTime = new Date(apt.dateTime).getTime();
+                // La cita debe ser en el futuro inmediato, pero no haber pasado, y dentro de los próximos 30 minutos.
+                return aptTime > now && aptTime <= timeWindowEnd;
+            });
+
+            if (upcomingAppointments.length > 0) {
+                const title = `🚨 Citas Próximas (en 30 min)`;
+                const content = upcomingAppointments.map(apt => {
+                    const aptDate = new Date(apt.dateTime);
+                    const timeDisplay = aptDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                    // Calcular el tiempo restante en minutos
+                    const minutesLeft = Math.ceil((aptDate.getTime() - now) / 60000); 
+
+                    return `<div class="border-l-4 border-cancel pl-3 py-2 bg-gray-800 rounded-lg">
+                                <p class="font-semibold text-white text-base">${apt.name}</p>
+                                <p class="text-sm text-gray-400">Hora: ${timeDisplay} - Restan: ${minutesLeft} min</p>
+                            </div>`;
+                }).join('<div class="h-3"></div>');
+                
+                playReminderSound();
+                showReminderModal(title, content);
+
+            }
+        }
+
 
         // =======================================================
         // INICIO DE LA APLICACIÓN
@@ -682,8 +815,16 @@
         document.addEventListener('DOMContentLoaded', () => {
             appointments = loadAppointments();
             renderView();
+            
+            // Recordatorio Diario
             checkAndScheduleDailyReminder();
+            // El intervalo del diario se mantiene para cubrir el momento exacto
             setInterval(checkAndScheduleDailyReminder, 300000); 
+            
+            // MODIFICACIÓN: Recordatorio de Citas Próximas (cada 30 minutos)
+            checkUpcomingAppointments();
+            // 1800000 ms = 30 minutos
+            setInterval(checkUpcomingAppointments, 1800000); 
         });
 
     </script>
