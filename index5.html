@@ -176,7 +176,7 @@
              return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
         }
         
-        // MODIFICACIÓN: Función para reproducir el sonido y manejar posibles errores.
+        // Función para reproducir el sonido y manejar posibles errores.
         function playReminderSound() {
             try {
                 if (reminderSound) {
@@ -188,7 +188,7 @@
             }
         }
 
-        /** NUEVA FUNCIÓN: Solicita permiso de notificación */
+        // Función: Solicita permiso de notificación
         function requestNotificationPermission() {
             if ('Notification' in window) {
                 Notification.requestPermission(permission => {
@@ -281,7 +281,6 @@
             const dayAppointments = appointments.filter(apt => apt.dateTime.startsWith(dateKey));
              
             const dateParts = dateKey.split('-');
-            // MODIFICACIÓN: Usar año, mes-1, día para construir la fecha.
             const displayDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
 
             const title = `Citas para el ${displayDate}`;
@@ -352,7 +351,7 @@
             `;
         }
 
-        // MODIFICACIÓN: Nueva vista para agendar manualmente
+        // Vista para agendar manualmente
         function renderManualAdd() {
             // Obtiene la fecha y hora actual en el formato YYYY-MM-DDTHH:MM
             const now = new Date();
@@ -416,7 +415,6 @@
             
             const appointmentsByDay = appointments.reduce((acc, apt) => {
                 const aptDate = new Date(apt.dateTime);
-                // MODIFICACIÓN: Asegurar que el dateKey sea YYYY-MM-DD
                 const dateKey = aptDate.getFullYear() + '-' + String(aptDate.getMonth() + 1).padStart(2, '0') + '-' + String(aptDate.getDate()).padStart(2, '0');
                 
                 if (!acc[dateKey]) { acc[dateKey] = []; }
@@ -441,7 +439,6 @@
 
             for (let day = 1; day <= daysInMonth; day++) {
                 const currentDate = new Date(calendarYear, calendarMonth, day);
-                // MODIFICACIÓN: Asegurar formato de fecha para la clave YYYY-MM-DD
                 const yearStr = currentDate.getFullYear();
                 const monthStr = String(currentDate.getMonth() + 1).padStart(2, '0');
                 const dayStr = String(day).padStart(2, '0');
@@ -752,6 +749,7 @@
             const now = new Date();
             const targetHour = 22; 
              
+            // Solo se ejecuta entre las 10 PM y las 11 PM
             if (now.getHours() >= targetHour && now.getHours() < targetHour + 1) {
                 const todayDateString = now.toISOString().substring(0, 10);
                 const reminderShownKey = `reminder_shown_${todayDateString}`;
@@ -788,24 +786,23 @@
         // COMUNICACIÓN CON SERVICE WORKER PARA DATOS DE ALARMA EN SEGUNDO PLANO
         // =======================================================
         if ('serviceWorker' in navigator) {
+            // 1. Maneja la petición del Service Worker para obtener los datos
             navigator.serviceWorker.addEventListener('message', event => {
                 if (event.data.command === 'GET_APPOINTMENTS') {
-                    // El Service Worker está pidiendo los datos de citas
                     const data = localStorage.getItem(STORAGE_KEY);
                     let appointmentsToSend = [];
                     if (data) {
                         try {
-                            // Asumimos que loadAppointments() ya limpia y ordena
                             appointmentsToSend = JSON.parse(data).appointments || [];
                         } catch(e) { /* ignore error */ }
                     }
                     
-                    // Respondemos al Service Worker con los datos
+                    // Responde al Service Worker con los datos
                     event.ports[0].postMessage({ appointments: appointmentsToSend });
                 }
             });
             
-            // Mandamos una señal al Service Worker para que despierte y haga una verificación inicial.
+            // 2. Envía una señal al Service Worker al iniciar para que haga la primera verificación.
             navigator.serviceWorker.ready.then(registration => {
                 if (registration.active) {
                     registration.active.postMessage({ command: 'WAKE_UP' });
@@ -824,12 +821,11 @@
             // 1. Solicitar Permiso de Notificación al iniciar
             requestNotificationPermission();
 
-            // 2. Recordatorio Diario (se mantiene aquí, se ejecuta una vez y se re-programa si es necesario)
+            // 2. Recordatorio Diario (cada 5 minutos)
             checkAndScheduleDailyReminder();
-            // El intervalo del diario se mantiene para cubrir el momento exacto (5 minutos)
             setInterval(checkAndScheduleDailyReminder, 300000); 
             
-            // ELIMINADO: La verificación de citas próximas se movió al Service Worker.
+            // El chequeo de citas próximas se realiza en el Service Worker.
         });
 
     </script>
