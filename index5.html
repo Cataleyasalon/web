@@ -188,6 +188,19 @@
             }
         }
 
+        /** NUEVA FUNCIÓN: Solicita permiso de notificación */
+        function requestNotificationPermission() {
+            if ('Notification' in window) {
+                Notification.requestPermission(permission => {
+                    if (permission === 'granted') {
+                        console.log("Permiso de notificaciones concedido.");
+                    } else if (permission === 'denied') {
+                         showModal("¡Advertencia! El permiso de notificaciones es necesario para las alarmas en segundo plano.");
+                    }
+                });
+            }
+        }
+
 
         // =======================================================
         // GESTIÓN DE LOCALSTORAGE
@@ -197,6 +210,12 @@
             const data = { appointments: apts, lastResetTimestamp: timestamp };
             try {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                
+                // Envía una señal al Service Worker de que los datos han cambiado
+                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({ command: 'DATA_UPDATED' });
+                }
+
             } catch (error) {
                 console.error('Error saving to localStorage:', error);
                 showModal('Error al guardar datos.');
@@ -547,7 +566,7 @@
                 switch (currentView) {
                     case 'calendar': renderCalendar(); break;
                     case 'cancel': renderCancel(); break;
-                    case 'manualAdd': renderManualAdd(); break; // MODIFICACIÓN: Nueva vista
+                    case 'manualAdd': renderManualAdd(); break;
                     case 'home': default: renderHome(); break;
                 }
             } catch (e) {
@@ -584,7 +603,6 @@
                 dateTime: new Date(dateString).toISOString()
             };
             
-
             const newDateTimeString = newAppointment.dateTime;
 
             if (new Date(newDateTimeString) < Date.now()) {
@@ -611,7 +629,7 @@
             if (!aptToCancel) { showModal('Error: Cita no encontrada.'); renderCancel(); return; }
              
             appointments = appointments.filter(apt => apt.id !== id);
-            saveAppointments(appointments);
+            saveAppointments(appointments); // Guardar y notificar al Service Worker
             showModal(`La cita de ${aptToCancel.name} ha sido cancelada.`);
             renderCancel();
         }
@@ -715,10 +733,9 @@
         }
 
         // =======================================================
-        // GESTIÓN DE RECORDATORIO DIARIO (10:00 PM) Y PRÓXIMAS CITAS (CADA 30 MIN)
+        // GESTIÓN DE RECORDATORIO DIARIO (10:00 PM) Y COMUNICACIÓN SW
         // =======================================================
         
-        // MODIFICACIÓN: Función genérica para mostrar el modal de recordatorios (usado también por showDayDetails)
         function showReminderModal(title, content) {
             document.getElementById('reminder-title').textContent = title;
             document.getElementById('reminder-content').innerHTML = content;
@@ -735,7 +752,7 @@
             const now = new Date();
             const targetHour = 22; 
              
-            if (now.getHours() >= targetHour) {
+            if (now.getHours() >= targetHour && now.getHours() < targetHour + 1) {
                 const todayDateString = now.toISOString().substring(0, 10);
                 const reminderShownKey = `reminder_shown_${todayDateString}`;
                  
@@ -744,11 +761,6 @@
                 const tomorrowDateString = getTomorrowDateString();
                 const appointmentsTomorrow = appointments.filter(apt => apt.dateTime.startsWith(tomorrowDateString));
                 
-                // Si la vista actual es diferente a la de inicio, calendario o cancelar, no mostramos el modal diario
-                if (['home', 'calendar', 'cancel', 'manualAdd'].includes(currentView)) {
-                    // La lógica para mostrar el modal diario aquí es la misma que antes
-                }
-
                 let title = '';
                 let content = '';
 
@@ -772,40 +784,33 @@
             } 
         }
         
-        /** MODIFICACIÓN: Nuevo sistema de recordatorio de citas próximas (cada 30 min) */
-        function checkUpcomingAppointments() {
-            // Recargar citas para asegurar que la lista esté actualizada
-            appointments = loadAppointments(); 
-            
-            const now = Date.now();
-            // 30 minutos en milisegundos
-            const thirtyMinutes = 30 * 60 * 1000;
-            const timeWindowEnd = now + thirtyMinutes;
-
-            const upcomingAppointments = appointments.filter(apt => {
-                const aptTime = new Date(apt.dateTime).getTime();
-                // La cita debe ser en el futuro inmediato, pero no haber pasado, y dentro de los próximos 30 minutos.
-                return aptTime > now && aptTime <= timeWindowEnd;
+        // =======================================================
+        // COMUNICACIÓN CON SERVICE WORKER PARA DATOS DE ALARMA EN SEGUNDO PLANO
+        // =======================================================
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', event => {
+                if (event.data.command === 'GET_APPOINTMENTS') {
+                    // El Service Worker está pidiendo los datos de citas
+                    const data = localStorage.getItem(STORAGE_KEY);
+                    let appointmentsToSend = [];
+                    if (data) {
+                        try {
+                            // Asumimos que loadAppointments() ya limpia y ordena
+                            appointmentsToSend = JSON.parse(data).appointments || [];
+                        } catch(e) { /* ignore error */ }
+                    }
+                    
+                    // Respondemos al Service Worker con los datos
+                    event.ports[0].postMessage({ appointments: appointmentsToSend });
+                }
             });
-
-            if (upcomingAppointments.length > 0) {
-                const title = `🚨 Citas Próximas (en 30 min)`;
-                const content = upcomingAppointments.map(apt => {
-                    const aptDate = new Date(apt.dateTime);
-                    const timeDisplay = aptDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-                    // Calcular el tiempo restante en minutos
-                    const minutesLeft = Math.ceil((aptDate.getTime() - now) / 60000); 
-
-                    return `<div class="border-l-4 border-cancel pl-3 py-2 bg-gray-800 rounded-lg">
-                                <p class="font-semibold text-white text-base">${apt.name}</p>
-                                <p class="text-sm text-gray-400">Hora: ${timeDisplay} - Restan: ${minutesLeft} min</p>
-                            </div>`;
-                }).join('<div class="h-3"></div>');
-                
-                playReminderSound();
-                showReminderModal(title, content);
-
-            }
+            
+            // Mandamos una señal al Service Worker para que despierte y haga una verificación inicial.
+            navigator.serviceWorker.ready.then(registration => {
+                if (registration.active) {
+                    registration.active.postMessage({ command: 'WAKE_UP' });
+                }
+            }).catch(error => console.error("Fallo al registrar o acceder al Service Worker:", error));
         }
 
 
@@ -816,15 +821,15 @@
             appointments = loadAppointments();
             renderView();
             
-            // Recordatorio Diario
+            // 1. Solicitar Permiso de Notificación al iniciar
+            requestNotificationPermission();
+
+            // 2. Recordatorio Diario (se mantiene aquí, se ejecuta una vez y se re-programa si es necesario)
             checkAndScheduleDailyReminder();
-            // El intervalo del diario se mantiene para cubrir el momento exacto
+            // El intervalo del diario se mantiene para cubrir el momento exacto (5 minutos)
             setInterval(checkAndScheduleDailyReminder, 300000); 
             
-            // MODIFICACIÓN: Recordatorio de Citas Próximas (cada 30 minutos)
-            checkUpcomingAppointments();
-            // 1800000 ms = 30 minutos
-            setInterval(checkUpcomingAppointments, 1800000); 
+            // ELIMINADO: La verificación de citas próximas se movió al Service Worker.
         });
 
     </script>
