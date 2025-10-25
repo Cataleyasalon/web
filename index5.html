@@ -97,6 +97,7 @@
                     </button>
                 </div>
             </div>
+            
             <div id="reminder-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-40">
                 <div class="bg-secondary-dark p-6 rounded-xl max-w-sm w-full text-left border border-accent shadow-2xl shadow-violet-700/50 transform transition-all duration-300 scale-100">
                     <div class="flex justify-between items-center mb-4">
@@ -135,7 +136,7 @@
         const viewContainer = document.getElementById('view-container');
         const messageModal = document.getElementById('message-modal');
         const modalText = document.getElementById('modal-text');
-        const reminderSound = document.getElementById('reminder-sound'); // Elemento de audio
+        const reminderSound = document.getElementById('reminder-sound');
 
         // =======================================================
         // UTILERÍAS GLOBALES
@@ -168,13 +169,12 @@
              return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
         }
         
-        // Función para reproducir el sonido (usada solo para el recordatorio diario)
         function playReminderSound() {
             try {
                 if (reminderSound) {
                     reminderSound.currentTime = 0;
                     reminderSound.play().catch(error => {
-                        console.warn("No se pudo reproducir el sonido. Posiblemente por restricciones del navegador (requiere interacción previa): ", error);
+                        console.warn("No se pudo reproducir el sonido (requiere interacción previa): ", error);
                     });
                 }
             } catch (error) {
@@ -188,14 +188,30 @@
         // =======================================================
         
         /**
-         * Solicita permiso para mostrar notificaciones.
+         * Registra el Service Worker y solicita permisos de notificación.
          */
+        function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('service-worker.js', { scope: './' }) // Asegúrate que la ruta y el scope sean correctos
+                    .then(reg => {
+                        console.log('Service Worker registrado con éxito. Scope:', reg.scope);
+                        // Una vez registrado, pedimos permiso y sincronizamos citas.
+                        requestNotificationPermission();
+                    })
+                    .catch(error => {
+                        console.error('Fallo en el registro del Service Worker:', error);
+                        showModal('Error CRÍTICO: No se pudo registrar el Service Worker. La alarma en segundo plano NO funcionará.');
+                    });
+            } else {
+                 showModal('Advertencia: Su navegador no soporta Service Workers. La alarma en segundo plano NO funcionará.');
+            }
+        }
+
         function requestNotificationPermission() {
             if ('Notification' in window) {
                 Notification.requestPermission().then(permission => {
                     if (permission === 'granted') {
-                        console.log("Permiso de notificación concedido. Alarmas en segundo plano activas.");
-                        // Si el permiso es concedido, enviamos las citas al SW.
+                        showModal("✅ Permiso de notificación concedido. Alarmas en segundo plano activas.");
                         sendAppointmentsToSW();
                     } else if (permission === 'denied') {
                         showModal("El permiso de notificaciones ha sido denegado. No recibirá alarmas cuando la aplicación esté cerrada.");
@@ -204,13 +220,8 @@
             }
         }
         
-        /**
-         * Envía las citas guardadas al Service Worker para que pueda gestionarlas.
-         */
         function sendAppointmentsToSW() {
-            // Verificamos si hay un Service Worker activo
             if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                // Recargamos citas para tener la data más reciente antes de enviar
                 const currentAppointments = loadAppointments(); 
                 
                 navigator.serviceWorker.controller.postMessage({
@@ -218,16 +229,16 @@
                     appointments: currentAppointments
                 });
                 console.log("Citas enviadas al Service Worker.");
-            } else if ('serviceWorker' in navigator && Notification.permission === 'granted') {
-                // Si aún no hay controlador, intentamos registrar para que lo tome
-                navigator.serviceWorker.getRegistration().then(reg => {
-                     if (reg && reg.active) {
-                         reg.active.postMessage({
+            } else {
+                 // Si no hay controlador aún, intentamos enviar el mensaje al registro activo
+                 navigator.serviceWorker.getRegistration().then(reg => {
+                    if (reg && reg.active) {
+                        reg.active.postMessage({
                             type: 'UPDATE_APPOINTMENTS',
                             appointments: loadAppointments()
                         });
-                     }
-                });
+                    }
+                 });
             }
         }
 
@@ -240,7 +251,6 @@
             const data = { appointments: apts, lastResetTimestamp: timestamp };
             try {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-                // CRÍTICO: Enviar la lista actualizada al Service Worker al guardar
                 sendAppointmentsToSW(); 
             } catch (error) {
                 console.error('Error saving to localStorage:', error);
@@ -249,6 +259,7 @@
         }
 
         function loadAppointments() {
+            // ... [Lógica de loadAppointments es la misma] ...
             try {
                 const storedData = localStorage.getItem(STORAGE_KEY);
                 if (!storedData) {
@@ -290,10 +301,13 @@
         }
 
         // =======================================================
-        // FUNCIONES DE NAVEGACIÓN Y DETALLES DEL CALENDARIO
+        // VISTAS, CALENDARIO Y GESTIÓN DE CITAS (Iguales)
         // =======================================================
-         
-        /** Cambia el mes actual del calendario y lo re-renderiza. */
+        
+        // ... (El resto de las funciones de navegación, renderizado y gestión de voz/citas son las mismas) ...
+        
+        // --- INICIO DE CÓDIGO DE VISTAS Y GESTIÓN DE CITAS (Mantenido) ---
+        
         function changeMonth(offset) {
             const newDate = currentCalendarDate;
             newDate.setMonth(newDate.getMonth() + offset);
@@ -302,9 +316,7 @@
             renderCalendar();
         }
 
-        /** Muestra los detalles de las citas de un día específico */
         function showDayDetails(dateKey) {
-            // Aseguramos que el formato de la clave de fecha sea consistente (YYYY-MM-DD)
             const year = dateKey.substring(0, 4);
             const month = dateKey.substring(5, 7);
             const day = dateKey.substring(8, 10);
@@ -338,11 +350,6 @@
             document.getElementById('reminder-modal').classList.remove('hidden');
         }
 
-
-        // =======================================================
-        // VISTAS Y RENDERIZADO
-        // =======================================================
-
         function setView(viewName) {
             currentView = viewName;
             if (viewName === 'calendar') {
@@ -357,6 +364,7 @@
                 <div class="space-y-4">
                     <button onclick="startSpeechRecognition()"
                         class="w-full bg-accent hover:bg-accent-hover text-white text-lg font-extrabold py-4 px-6 rounded-xl transition duration-300 transform hover:scale-[1.02] shadow-xl shadow-violet-700/30 flex items-center justify-center">
+
                         <i class="fas fa-microphone text-2xl mr-3"></i>
                         AGENDAR CITA (DICTADO)
                     </button>
@@ -382,7 +390,6 @@
             `;
         }
 
-        // Vista para agendar manualmente
         function renderManualAdd() {
             const now = new Date();
             const year = now.getFullYear();
@@ -429,7 +436,6 @@
             });
         }
         
-        /** Renderiza la vista de Calendario en formato de cuadrícula mensual */
         function renderCalendar() {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -445,7 +451,6 @@
             
             const appointmentsByDay = appointments.reduce((acc, apt) => {
                 const aptDate = new Date(apt.dateTime);
-                // NOTA: Usamos el formato YYYY-MM-DD
                 const dateKey = aptDate.getFullYear() + '-' + String(aptDate.getMonth() + 1).padStart(2, '0') + '-' + String(aptDate.getDate()).padStart(2, '0');
                 
                 if (!acc[dateKey]) { acc[dateKey] = []; }
@@ -603,10 +608,6 @@
             }
         }
 
-        // =======================================================
-        // GESTIÓN DE CITAS Y VOZ
-        // =======================================================
-        
         function manualAddAppointment(name, dateTimeLocalString) {
             if (!name || !dateTimeLocalString) {
                 showModal('Error: Faltan campos obligatorios.');
@@ -646,7 +647,7 @@
             }
 
             appointments.push(newAppointment);
-            saveAppointments(appointments); // saveAppointments llama a sendAppointmentsToSW()
+            saveAppointments(appointments); 
             showModal(`✅ ¡Cita agendada! ${name} el ${formatDateTime(newAppointment.dateTime)}.`);
             setView('home');
         }
@@ -656,13 +657,12 @@
             if (!aptToCancel) { showModal('Error: Cita no encontrada.'); renderCancel(); return; }
              
             appointments = appointments.filter(apt => apt.id !== id);
-            saveAppointments(appointments); // saveAppointments llama a sendAppointmentsToSW()
+            saveAppointments(appointments); 
             showModal(`La cita de ${aptToCancel.name} ha sido cancelada.`);
             renderCancel();
         }
 
         function startSpeechRecognition() {
-            // ... [código de reconocimiento de voz] ...
             if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
                 showModal('Tu navegador no soporta la función de dictado.');
                 return;
@@ -711,7 +711,6 @@
         }
 
         function processVoiceCommand(text) {
-            // ... [código de procesamiento de voz] ...
             const lowerText = text.toLowerCase();
             const dateRegex = /(el\s+)?(\d{1,2})\s+(de|del)\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre).*?(a\s+(la|las)\s+)?(\d{1,2})(:\d{2})?\s*(de la mañana|am|de la tarde|pm|noche|madrugada)?/i;
             const match = lowerText.match(dateRegex);
@@ -761,9 +760,6 @@
             setTimeout(() => { addAppointment(name, aptDate.toISOString()); }, 1000); 
         }
 
-        // =======================================================
-        // GESTIÓN DE RECORDATORIO DIARIO (22:00 / 10:00 PM) - Mantenido en el cliente
-        // =======================================================
         function getTomorrowDateString() {
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
@@ -771,7 +767,6 @@
         }
 
         function checkAndScheduleDailyReminder() {
-            // Solo se muestra si la aplicación está abierta. La alarma de 30 minutos es en el SW.
             const now = new Date();
             const targetHour = 22; 
              
@@ -809,6 +804,8 @@
                 localStorage.setItem(reminderShownKey, 'true');
             } 
         }
+        
+        // --- FIN DE CÓDIGO DE VISTAS Y GESTIÓN DE CITAS ---
 
 
         // =======================================================
@@ -818,10 +815,10 @@
             appointments = loadAppointments();
             renderView();
             
-            // CRÍTICO: Solicitamos permiso y enviamos citas al Service Worker
-            requestNotificationPermission(); 
+            // 🚨 CRÍTICO: Registrar el Service Worker y pedir permiso de notificación
+            registerServiceWorker(); 
             
-            // Intervalo de 5 minutos para el recordatorio diario (10 PM), solo si la app está abierta.
+            // Intervalo de 5 minutos para el recordatorio diario (solo si la app está abierta).
             checkAndScheduleDailyReminder();
             setInterval(checkAndScheduleDailyReminder, 300000); 
         });
