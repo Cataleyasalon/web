@@ -1,6 +1,6 @@
 // service-worker.js
 
-const CACHE_NAME = 'cataleya-cache-v8'; // Versión 8 para forzar la actualización
+const CACHE_NAME = 'cataleya-cache-v9'; // Versión 9 para forzar la actualización
 const urlsToCache = [
     // La ruta debe ser relativa desde la raíz del Service Worker
     './', // Ruta raíz para el Service Worker
@@ -21,34 +21,34 @@ let alarmInterval = null;
 // =======================================================
 
 /**
- * Chequea si alguna cita está entre 1 y 3 minutos a partir de ahora.
+ * Chequea si alguna cita está entre 30 segundos y 5 minutos a partir de ahora.
  * Dispara la notificación del sistema operativo.
  */
 function checkAppointments() {
-    console.log('[Service Worker v8] Chequeando citas...');
+    console.log('[Service Worker v9] Chequeando citas...');
     const now = Date.now();
     
-    // ?? VENTANA DE ACTIVACIÓN DE LA ALARMA: [3 minutos antes, 1 minuto antes)
-    const THREE_MINUTES_MS = 3 * 60 * 1000;
-    const ONE_MINUTE_MS = 1 * 60 * 1000;
+    // ?? VENTANA DE ACTIVACIÓN DE LA ALARMA (CRÍTICO):
+    // La alarma solo se dispara si la cita está entre 5 minutos y 30 segundos de distancia.
+    const FIVE_MINUTES_MS = 5 * 60 * 1000;
+    const THIRTY_SECONDS_MS = 30 * 1000;
+
+    // Define los límites de la ventana de tiempo para la notificación
+    const timeWindowStart = now + THIRTY_SECONDS_MS; // Alarma si faltan > 30s
+    const timeWindowEnd = now + FIVE_MINUTES_MS;    // Alarma si faltan < 5 min
 
     storedAppointments.forEach(apt => {
         const aptTime = new Date(apt.dateTime).getTime();
         
-        // Calcule el inicio y fin de la ventana de activación de la alarma
-        // Si 'now' cae en este rango, se dispara la notificación.
-        const notificationStartTime = aptTime - THREE_MINUTES_MS; // 3 minutos antes
-        const notificationEndTime = aptTime - ONE_MINUTE_MS;     // 1 minuto antes (Excluido)
-
-        // 1. Verificar si el tiempo actual (now) está dentro de la ventana de activación.
-        if (aptTime > now && now >= notificationStartTime && now < notificationEndTime) {
+        // 1. Verificar si la cita cae dentro del rango [30s a 5 min]
+        if (aptTime >= timeWindowStart && aptTime <= timeWindowEnd) {
             
             // 2. Verificar si ya fue notificada
             if (!notifiedAppointmentIds.includes(apt.id)) {
                 
                 const timeDisplay = new Date(apt.dateTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
                 
-                // Calcular los minutos restantes para el mensaje (debería ser 2 o 3)
+                // Calcular los minutos restantes (usado en el mensaje)
                 const timeDifference = aptTime - now;
                 const minutesLeft = Math.ceil(timeDifference / 60000); 
                 
@@ -62,38 +62,43 @@ function checkAppointments() {
 
                 // Mostrar la notificación
                 self.registration.showNotification('?? ALARMA DE CITA PRÓXIMA ??', options)
-                    .then(() => console.log(`[Service Worker v8] Notificación mostrada para ${apt.name}`))
-                    .catch(e => console.error("[Service Worker v8] Error al mostrar notificación:", e));
+                    .then(() => console.log(`[Service Worker v9] Notificación mostrada para ${apt.name}`))
+                    .catch(e => console.error("[Service Worker v9] Error al mostrar notificación:", e));
                 
                 // Marcar como notificada
                 notifiedAppointmentIds.push(apt.id);
             }
         }
+        // Opcional: Limpiar ID de notificaciones para citas que ya pasaron
+        else if (aptTime < now && notifiedAppointmentIds.includes(apt.id)) {
+             notifiedAppointmentIds = notifiedAppointmentIds.filter(id => id !== apt.id);
+        }
     });
 }
 
 /**
- * Inicia el chequeo de citas cada 2 minutos (120,000 ms).
+ * Inicia el chequeo de citas cada 30 segundos (30000 ms) para mayor fiabilidad.
  */
 function startAlarmTimer() {
     if (alarmInterval) { clearInterval(alarmInterval); } 
     
     checkAppointments(); 
-    // Mantenemos el chequeo cada 2 minutos (120000 ms)
-    alarmInterval = setInterval(checkAppointments, 120000); 
-    console.log('[Service Worker v8] Temporizador de alarma iniciado (cada 2 minutos).');
+    // Intervalo de chequeo más corto (30 segundos) para no fallar el margen
+    alarmInterval = setInterval(checkAppointments, 30000); 
+    console.log('[Service Worker v9] Temporizador de alarma iniciado (cada 30 segundos).');
 }
 
 // =======================================================
-// MANEJO DE EVENTOS ESTÁNDAR DEL SW (Sin Cambios)
+// MANEJO DE EVENTOS ESTÁNDAR DEL SW 
 // =======================================================
 
 // Evento: Instalación
 self.addEventListener('install', event => {
-  console.log('[Service Worker v8] Instalando y precacheando...');
+  console.log('[Service Worker v9] Instalando y precacheando...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
+
       .catch(error => console.error('Fallo al precachear archivos:', error))
   );
   self.skipWaiting(); 
@@ -127,9 +132,11 @@ self.addEventListener('message', event => {
     if (event.data && event.data.type === 'UPDATE_APPOINTMENTS') {
         storedAppointments = event.data.appointments;
         
+        // Al recibir nuevas citas, se resetea la lista de notificados
         notifiedAppointmentIds = []; 
         console.log(`[Service Worker] Citas actualizadas. Total: ${storedAppointments.length}`);
         
+        // Se chequea inmediatamente por si la cita es en menos de 5 minutos.
         checkAppointments();
     }
 });

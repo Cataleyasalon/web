@@ -192,7 +192,7 @@
          */
         function registerServiceWorker() {
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('service-worker.js', { scope: './' }) // Asegúrate que la ruta y el scope sean correctos
+                navigator.serviceWorker.register('service-worker.js', { scope: './' }) 
                     .then(reg => {
                         console.log('Service Worker registrado con éxito. Scope:', reg.scope);
                         // Una vez registrado, pedimos permiso y sincronizamos citas.
@@ -230,7 +230,6 @@
                 });
                 console.log("Citas enviadas al Service Worker.");
             } else {
-                 // Si no hay controlador aún, intentamos enviar el mensaje al registro activo
                  navigator.serviceWorker.getRegistration().then(reg => {
                     if (reg && reg.active) {
                         reg.active.postMessage({
@@ -259,7 +258,6 @@
         }
 
         function loadAppointments() {
-            // ... [Lógica de loadAppointments es la misma] ...
             try {
                 const storedData = localStorage.getItem(STORAGE_KEY);
                 if (!storedData) {
@@ -271,7 +269,6 @@
                 let currentAppointments = data.appointments;
                 const now = new Date();
                  
-                // Lógica de Limpieza de Historial (4 meses para atrás)
                 const fourMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 4, now.getDate());
                  
                 const filteredAppointments = currentAppointments.filter(apt => {
@@ -303,10 +300,6 @@
         // =======================================================
         // VISTAS, CALENDARIO Y GESTIÓN DE CITAS (Iguales)
         // =======================================================
-        
-        // ... (El resto de las funciones de navegación, renderizado y gestión de voz/citas son las mismas) ...
-        
-        // --- INICIO DE CÓDIGO DE VISTAS Y GESTIÓN DE CITAS (Mantenido) ---
         
         function changeMonth(offset) {
             const newDate = currentCalendarDate;
@@ -364,7 +357,6 @@
                 <div class="space-y-4">
                     <button onclick="startSpeechRecognition()"
                         class="w-full bg-accent hover:bg-accent-hover text-white text-lg font-extrabold py-4 px-6 rounded-xl transition duration-300 transform hover:scale-[1.02] shadow-xl shadow-violet-700/30 flex items-center justify-center">
-
                         <i class="fas fa-microphone text-2xl mr-3"></i>
                         AGENDAR CITA (DICTADO)
                     </button>
@@ -804,9 +796,6 @@
                 localStorage.setItem(reminderShownKey, 'true');
             } 
         }
-        
-        // --- FIN DE CÓDIGO DE VISTAS Y GESTIÓN DE CITAS ---
-
 
         // =======================================================
         // INICIO DE LA APLICACIÓN
