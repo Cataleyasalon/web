@@ -56,7 +56,12 @@ const reminderSound=document.getElementById('reminder-sound');
 function showModal(msg){modalText.textContent=msg;modal.classList.remove('hidden');}
 function closeModal(){modal.classList.add('hidden');}
 
-function saveAppointments(a){localStorage.setItem(STORAGE_KEY,JSON.stringify(a));sendToSW();}
+function saveAppointments(a){
+ try{
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(a));
+  sendToSW();
+ }catch(e){console.error(e);showModal('❌ No se pudo registrar la cita.');}
+}
 function loadAppointments(){return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');}
 
 function registerSW(){
@@ -87,23 +92,27 @@ function renderAdd(){
  const now=new Date().toISOString().slice(0,16);
  viewContainer.innerHTML=`
  <h2 class='text-2xl font-bold text-white mb-6'>Agendar Cita</h2>
- <form id='form' class='space-y-4'>
+ <form id='form' class='space-y-4' onsubmit='return false;'>
    <input id='name' class='w-full p-3 rounded-lg bg-gray-800 text-white border border-gray-700' placeholder='Nombre del cliente' required>
    <input type='datetime-local' id='date' class='w-full p-3 rounded-lg bg-gray-800 text-white border border-gray-700' value='${now}' required>
-   <button class='w-full bg-accent hover:bg-accent-hover text-white py-3 rounded-lg font-bold'>Confirmar Cita</button>
+   <button id='saveBtn' type='button' class='w-full bg-accent hover:bg-accent-hover text-white py-3 rounded-lg font-bold'>Confirmar Cita</button>
    <button type='button' onclick="setView('home')" class='w-full bg-gray-600 hover:bg-gray-700 text-white py-2 rounded-lg'>Volver</button>
  </form>`;
- document.getElementById('form').onsubmit=e=>{
-   e.preventDefault();
+
+ document.getElementById('saveBtn').addEventListener('click',()=>{
    const n=document.getElementById('name').value.trim();
    const d=document.getElementById('date').value;
-   if(!n||!d)return showModal('Completa todos los campos');
-   appointments.push({id:crypto.randomUUID(),name:n,dateTime:new Date(d).toISOString()});
-   saveAppointments(appointments);
-   startReminder();
-   showModal('Cita agendada correctamente.');
-   setView('home');
- };
+   if(!n||!d){showModal('❌ No se pudo registrar la cita.');return;}
+   try{
+     const id=crypto.randomUUID();
+     const newApt={id,name:n,dateTime:new Date(d).toISOString()};
+     appointments.push(newApt);
+     saveAppointments(appointments);
+     startReminder();
+     showModal('✅ La cita se registró con éxito.');
+     setTimeout(()=>setView('home'),1200);
+   }catch(e){console.error(e);showModal('❌ No se pudo registrar la cita.');}
+ });
 }
 
 function renderCalendar(){
