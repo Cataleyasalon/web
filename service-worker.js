@@ -1,8 +1,8 @@
 // service-worker.js
 
-const CACHE_NAME = 'cataleya-cache-v12'; // Versión 12 para forzar la actualización de la lógica de alarma
+const CACHE_NAME = 'cataleya-cache-v13'; // Versión 13 para forzar la actualización y el arreglo de notificaciones
 const urlsToCache = [
-    // Rutas relativas para robustez, asumiendo que SW está en la misma carpeta que index5.html
+    // Usamos rutas relativas
     './', 
     'index5.html', 
     'manifest.json',
@@ -22,18 +22,18 @@ let alarmInterval = null;
 
 /**
  * Chequea si alguna cita está entre 30 segundos y 5 minutos a partir de ahora.
- * Dispara la notificación del sistema operativo y avisa al cliente para el sonido.
+ * Dispara la notificación del sistema operativo.
  */
 function checkAppointments() {
-    console.log('[Service Worker v12] Chequeando citas...');
+    console.log('[Service Worker v13] Chequeando citas...');
     const now = Date.now();
     
     // Ventana de activación de la alarma
     const FIVE_MINUTES_MS = 5 * 60 * 1000;
     const THIRTY_SECONDS_MS = 30 * 1000;
 
-    const timeWindowStart = now + THIRTY_SECONDS_MS; 
-    const timeWindowEnd = now + FIVE_MINUTES_MS;    
+    const timeWindowStart = now + THIRTY_SECONDS_MS; // 30 segundos en el futuro
+    const timeWindowEnd = now + FIVE_MINUTES_MS;    // 5 minutos en el futuro
 
     storedAppointments.forEach(apt => {
         const aptTime = new Date(apt.dateTime).getTime();
@@ -51,23 +51,17 @@ function checkAppointments() {
                 
                 const options = {
                     body: `La cita con ${apt.name} es a las ${timeDisplay}. Faltan aproximadamente ${minutesLeft} minutos.`,
-                    // Usando rutas relativas para los iconos, asumiendo que el SW está en el mismo directorio.
                     icon: 'icono192.png', 
                     tag: `cita-proxima-${apt.id}`, 
-                    sound: 'alarma.mp3', 
+                    sound: 'alarma.mp3', // Este sonido solo funciona en ciertas plataformas (Android/Desktop)
                     vibrate: [200, 100, 200]
                 };
 
                 // Mostrar la notificación
                 self.registration.showNotification('🚨 ALARMA DE CITA PRÓXIMA 🚨', options)
-                    .then(() => console.log(`[Service Worker v12] Notificación mostrada para ${apt.name}`))
-                    .catch(e => console.error("[Service Worker v12] Error al mostrar notificación:", e));
+                    .then(() => console.log(`[Service Worker v13] Notificación mostrada para ${apt.name}`))
+                    .catch(e => console.error("[Service Worker v13] Error al mostrar notificación:", e));
                 
-                // Avisar al cliente (index5.html) para que reproduzca el sonido si la app está abierta
-                self.clients.matchAll().then(clients => {
-                    clients.forEach(client => client.postMessage({ type: 'PLAY_ALARM_SOUND' }));
-                });
-
                 // Marcar como notificada
                 notifiedAppointmentIds.push(apt.id);
             }
@@ -87,7 +81,7 @@ function startAlarmTimer() {
     
     checkAppointments(); 
     alarmInterval = setInterval(checkAppointments, 30000); 
-    console.log('[Service Worker v12] Temporizador de alarma iniciado (cada 30 segundos).');
+    console.log('[Service Worker v13] Temporizador de alarma iniciado (cada 30 segundos).');
 }
 
 // =======================================================
@@ -96,7 +90,7 @@ function startAlarmTimer() {
 
 // Evento: Instalación (Precacheo)
 self.addEventListener('install', event => {
-  console.log('[Service Worker v12] Instalando y precacheando...');
+  console.log('[Service Worker v13] Instalando y precacheando...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
@@ -131,14 +125,13 @@ self.addEventListener('fetch', event => {
 // Evento: Message (Recibir citas del cliente)
 self.addEventListener('message', event => {
     if (event.data && event.data.type === 'UPDATE_APPOINTMENTS') {
-        // Al recibir nuevas citas, se actualiza la lista
         storedAppointments = event.data.appointments;
         
-        // Se resetea la lista de notificados para permitir re-notificaciones si se cambia una cita próxima
+        // Resetear la lista de notificados para re-evaluar si la cita se modificó
         notifiedAppointmentIds = []; 
-        console.log(`[Service Worker v12] Citas actualizadas. Total: ${storedAppointments.length}`);
+        console.log(`[Service Worker v13] Citas actualizadas. Total: ${storedAppointments.length}`);
         
-        // Se chequea inmediatamente por si la cita es en menos de 5 minutos.
+        // Chequear inmediatamente
         checkAppointments();
     }
 });
