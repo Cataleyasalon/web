@@ -12,6 +12,273 @@
   --lavanda2:#8b5cf6;
   --card:rgba(255,255,255,0.04);
   --text:#e5e7eb;
+  --fade:0.6s;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body {
+  font-family:'Inter',system-ui,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  min-height:100vh;
+  animation:fadeIn var(--fade) ease-in-out both;
+  background-image:radial-gradient(circle at 50% 15%,rgba(167,139,250,0.06),transparent 40%);
+}
+@keyframes fadeIn {from{opacity:0;filter:blur(8px);}to{opacity:1;filter:blur(0);}}
+
+/* CABECERA */
+header {
+  width:100%;
+  max-width:900px;
+  margin:10px auto 20px;
+  border-radius:16px;
+  overflow:hidden;
+  background:rgba(255,255,255,0.03);
+  box-shadow:0 4px 25px rgba(0,0,0,0.45);
+}
+header img {
+  width:100%;
+  display:block;
+  height:auto;
+  max-height:200px;
+  object-fit:cover;
+  object-position:center;
+  background:#1b2230;
+}
+
+/* TARJETA PRINCIPAL */
+.card {
+  width:100%;
+  max-width:900px;
+  background:var(--card);
+  border-radius:20px;
+  backdrop-filter:blur(8px);
+  box-shadow:0 8px 40px rgba(0,0,0,0.6);
+  padding:24px;
+}
+
+/* BOTONES */
+.btn{
+  display:block;width:100%;
+  padding:18px;border:none;border-radius:16px;
+  margin-bottom:16px;
+  font-weight:700;font-size:18px;
+  cursor:pointer;transition:all .25s ease;
+}
+.btn-primary{background:linear-gradient(90deg,var(--lavanda),var(--lavanda2));color:#fff;}
+.btn-gray{background:rgba(255,255,255,0.04);color:#fff;border:1px solid rgba(255,255,255,0.08);}
+.btn-danger{background:#ef4444;color:#fff;}
+.btn:hover{box-shadow:0 0 22px rgba(139,92,246,0.3);transform:scale(1.03);}
+
+/* INPUTS */
+.input{
+  width:100%;padding:14px;margin-bottom:12px;
+  border-radius:12px;border:1px solid rgba(255,255,255,0.06);
+  background:transparent;color:var(--text);
+}
+
+/* CALENDARIO */
+.calendar{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:10px;width:100%;margin-top:16px;
+}
+.day{
+  background:rgba(255,255,255,0.03);
+  border-radius:12px;text-align:center;
+  padding:10px;min-height:70px;
+  display:flex;flex-direction:column;
+  justify-content:space-between;
+  position:relative;transition:all .2s ease;
+}
+.day:hover{transform:translateY(-3px);box-shadow:0 0 14px rgba(167,139,250,0.2);}
+.day .num{font-weight:700;color:var(--text);}
+.day .items{font-size:13px;color:#cbd5e1;}
+.glow-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--lavanda);
+  position:absolute;left:50%;bottom:6px;
+  transform:translateX(-50%);
+  box-shadow:0 0 8px var(--lavanda2);
+}
+
+/* BOTÓN INFERIOR */
+.footer-btn{display:flex;justify-content:center;margin-top:24px;}
+.footer-btn button{
+  padding:16px 26px;
+  border:none;border-radius:14px;
+  background:linear-gradient(90deg,var(--lavanda),var(--lavanda2));
+  color:white;font-weight:700;font-size:17px;
+  box-shadow:0 0 20px rgba(139,92,246,0.3);
+}
+.footer-btn button:hover{
+  transform:scale(1.05);
+  box-shadow:0 0 26px rgba(139,92,246,0.4);
+}
+
+/* RESPONSIVE */
+@media(max-width:600px){
+  .btn{font-size:16px;padding:16px;}
+  .day{min-height:60px;}
+  header img{max-height:150px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <img src="cabecera.png" alt="Cataleya Citas">
+</header>
+
+<div class="card">
+  <div id="app"></div>
+</div>
+
+<audio id="alarm" src="alarma.mp3" preload="auto"></audio>
+
+<script>
+const STORAGE_KEY='cataleya_v36_appointments';
+let appointments=[];
+let reminderTimer=null;
+const app=document.getElementById('app');
+const alarm=document.getElementById('alarm');
+
+function fadePage(){
+  document.body.style.animation='none';
+  void document.body.offsetWidth;
+  document.body.style.animation='fadeIn var(--fade) ease-in-out both';
+}
+
+function showModal(t){alert(t);}
+function load(){
+  try{
+    const d=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');
+    appointments=Array.isArray(d)?d:[];
+  }catch{appointments=[];}
+  return appointments;
+}
+function save(a){
+  appointments=a;
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(a));
+  if(navigator.serviceWorker?.controller)
+    navigator.serviceWorker.controller.postMessage({type:'UPDATE_APPOINTMENTS',appointments});
+}
+
+/* === VISTAS === */
+function renderHome(){
+  fadePage();
+  app.innerHTML=`
+    <button class="btn btn-primary" id="addBtn">AGENDAR NUEVA CITA</button>
+    <button class="btn btn-gray" id="viewBtn">VER CITAS</button>
+    <button class="btn btn-gray" id="calBtn">VER CALENDARIO</button>
+    <button class="btn btn-danger" id="cancelBtn">CANCELAR CITA</button>
+  `;
+  addBtn.onclick=renderAdd;
+  viewBtn.onclick=renderView;
+  calBtn.onclick=renderCalendar;
+  cancelBtn.onclick=renderCancel;
+}
+
+function renderAdd(){
+  fadePage();
+  const now=new Date().toISOString().slice(0,16);
+  app.innerHTML=`
+    <h3>Agendar Cita</h3>
+    <input id="name" class="input" placeholder="Nombre del cliente">
+    <input id="date" type="datetime-local" class="input" value="${now}">
+    <button class="btn btn-primary" id="confirm">Confirmar</button>
+    <button class="btn btn-gray" id="back">Volver</button>
+  `;
+  back.onclick=renderHome;
+  confirm.onclick=()=>{
+    const name=document.getElementById('name').value.trim();
+    const date=document.getElementById('date').value;
+    if(!name||!date)return showModal('Completa todos los campos.');
+    const dt=new Date(date);
+    const a={id:Date.now(),name,dateTime:dt.toISOString(),notified:false};
+    const list=load();list.push(a);save(list);
+    showModal('✅ Cita guardada');startReminder();renderHome();
+  };
+}
+
+function renderView(){
+  fadePage();
+  const list=load().filter(a=>new Date(a.dateTime)>Date.now());
+  if(!list.length)return app.innerHTML='<p>No hay citas programadas.</p><div class="footer-btn"><button onclick="renderHome()">⬅️ Volver al menú</button></div>';
+  app.innerHTML=list.map(a=>`<div class="day"><div>${a.name}</div><div>${new Date(a.dateTime).toLocaleString()}</div></div>`).join('')+`<div class="footer-btn"><button onclick="renderHome()">⬅️ Volver al menú</button></div>`;
+}
+
+function renderCancel(){
+  fadePage();
+  const list=load();
+  if(!list.length)return app.innerHTML='<p>No hay citas.</p><div class="footer-btn"><button onclick="renderHome()">⬅️ Volver al menú</button></div>';
+  app.innerHTML=list.map(a=>`<div class="day"><div>${a.name} - ${new Date(a.dateTime).toLocaleString()}</div><button class="btn btn-danger" onclick="cancel('${a.id}')">Cancelar</button></div>`).join('')+`<div class="footer-btn"><button onclick="renderHome()">⬅️ Volver al menú</button></div>`;
+}
+
+function cancel(id){const list=load().filter(a=>a.id!=id);save(list);renderCancel();}
+
+function renderCalendar(){
+  fadePage();
+  const list=load();
+  const date=new Date(),year=date.getFullYear(),month=date.getMonth();
+  const first=new Date(year,month,1).getDay();
+  const days=new Date(year,month+1,0).getDate();
+  const map={};list.forEach(a=>{const k=a.dateTime.slice(0,10);(map[k]=map[k]||[]).push(a);});
+  let html='';for(let i=0;i<first;i++)html+='<div></div>';
+  for(let d=1;d<=days;d++){
+    const k=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const c=map[k]||[];
+    html+=`<div class="day" onclick="showDay('${k}')"><div class="num">${d}</div><div class="items">${c.slice(0,2).map(x=>x.name).join('<br>')}</div>${c.length?'<div class="glow-dot"></div>':''}</div>`;
+  }
+  app.innerHTML=`<h3 style="text-align:center;text-transform:capitalize">${date.toLocaleDateString('es-ES',{month:'long',year:'numeric'})}</h3><div class="calendar">${html}</div><div class="footer-btn"><button onclick="renderHome()">⬅️ Volver al menú</button></div>`;
+}
+
+function showDay(k){
+  const list=load().filter(a=>a.dateTime.startsWith(k));
+  if(!list.length)return showModal('No hay citas ese día.');
+  showModal(list.map(a=>`${a.name} - ${new Date(a.dateTime).toLocaleTimeString()}`).join('\n'));
+}
+
+/* === RECORDATORIO === */
+function startReminder(){
+  if(reminderTimer)return;
+  reminderTimer=setInterval(()=>{
+    const now=Date.now();const list=load();
+    list.forEach(a=>{
+      const t=new Date(a.dateTime).getTime();
+      if(t-now<=5*60*1000&&t>now&&!a.notified){
+        a.notified=true;save(list);
+        new Notification(`🔔 Cita con ${a.name}`,{body:`💜 Recuerda tu cita a las ${new Date(a.dateTime).toLocaleTimeString()}`,icon:'icono192.png'});
+        alarm.loop=true;alarm.play().catch(()=>{});
+      }
+    });
+  },60000);
+}
+
+/* === INIT === */
+if('serviceWorker'in navigator){navigator.serviceWorker.register('service-worker.js');}
+if(Notification.permission!=='granted')Notification.requestPermission();
+window.onload=()=>{renderHome();startReminder();};
+</script>
+</body>
+</html>
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cataleya Citas</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root {
+  --bg:#1b2230;
+  --lavanda:#a78bfa;
+  --lavanda2:#8b5cf6;
+  --card:rgba(255,255,255,0.04);
+  --text:#e5e7eb;
   --fade:0.5s;
 }
 *{box-sizing:border-box;margin:0;padding:0}
