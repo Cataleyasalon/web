@@ -1,5 +1,5 @@
-// Service Worker v28
-const CACHE_NAME='cataleya-cache-v28';
+// Service Worker v29
+const CACHE_NAME='cataleya-cache-v29';
 const urlsToCache=['./index5.html','./manifest.json','./icono192.png','./icono512.png','./cabecera.png','./alarma.mp3'];
 let appointments=[];let notified=[];let timer=null;
 

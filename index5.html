@@ -60,7 +60,7 @@ function saveAppointments(a){
  try{
   localStorage.setItem(STORAGE_KEY,JSON.stringify(a));
   sendToSW();
- }catch(e){console.error(e);showModal('❌ No se pudo registrar la cita.');}
+ }catch(e){console.error(e);showModal('❌ No se pudo guardar la cita.');}
 }
 function loadAppointments(){return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');}
 
@@ -102,17 +102,24 @@ function renderAdd(){
  document.getElementById('saveBtn').addEventListener('click',()=>{
    const n=document.getElementById('name').value.trim();
    const d=document.getElementById('date').value;
-   if(!n||!d){showModal('❌ No se pudo registrar la cita.');return;}
-   try{
-     const id=crypto.randomUUID();
-     const newApt={id,name:n,dateTime:new Date(d).toISOString()};
-     appointments.push(newApt);
-     saveAppointments(appointments);
-     startReminder();
-     showModal('✅ La cita se registró con éxito.');
-     setTimeout(()=>setView('home'),1200);
-   }catch(e){console.error(e);showModal('❌ No se pudo registrar la cita.');}
+   if(!n||!d){showModal('⚠️ Debes completar todos los campos.');return;}
+   const parsedDate=parseDateTime(d);
+   if(!parsedDate||isNaN(parsedDate.getTime())){showModal('❌ Fecha u hora inválida.');return;}
+   const id=crypto.randomUUID();
+   const newApt={id,name:n,dateTime:parsedDate.toISOString()};
+   appointments.push(newApt);
+   saveAppointments(appointments);
+   startReminder();
+   showModal('✅ La cita se registró con éxito.');
+   setTimeout(()=>setView('home'),1500);
  });
+}
+
+function parseDateTime(input){
+ try{
+   // Manejar formatos tipo "2025-10-25T14:30"
+   return new Date(input.replace('T',' ') + ':00');
+ }catch(e){return null;}
 }
 
 function renderCalendar(){
