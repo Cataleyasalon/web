@@ -1,6 +1,6 @@
 // service-worker.js
 
-const CACHE_NAME = 'cataleya-cache-v22'; // Versión 22 para forzar la actualización
+const CACHE_NAME = 'cataleya-cache-v23'; // Versión 23 para forzar la actualización del caché
 const urlsToCache = [
     // Usamos rutas relativas (asume que SW está en el mismo directorio que los demás archivos)
     './', 
@@ -8,8 +8,7 @@ const urlsToCache = [
     'manifest.json',
     'icono192.png',
     'icono512.png',
-    // cabecera.png ya no es necesario en el caché si se elimina del HTML, pero lo dejamos por si acaso
-    'cabecera.png', 
+    'cabecera.png', // Lo mantenemos en el caché por si la PWA lo usa
     'alarma.mp3' 
 ];
 
@@ -25,7 +24,7 @@ let alarmInterval = null;
  * Chequea si alguna cita es en menos de 5 minutos y dispara la notificación.
  */
 function checkAppointments() {
-    console.log('[Service Worker v22] Chequeando citas...');
+    console.log('[Service Worker v23] Chequeando citas...');
     const now = Date.now();
     
     // Ventana de activación de la alarma (Hasta 5 minutos en el futuro)
@@ -39,7 +38,6 @@ function checkAppointments() {
         if (timeDifference > 0 && timeDifference <= FIVE_MINUTES_MS && !notifiedAppointmentIds.includes(apt.id)) {
             
             const timeDisplay = new Date(apt.dateTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-            // Calcular minutos restantes, redondeando al siguiente minuto para no decir 0 min.
             const minutesLeft = Math.max(1, Math.ceil(timeDifference / 60000)); 
             
             const options = {
@@ -53,8 +51,8 @@ function checkAppointments() {
 
             // Mostrar la notificación
             self.registration.showNotification('🚨 ALARMA DE CITA PRÓXIMA 🚨', options)
-                .then(() => console.log(`[Service Worker v22] Notificación mostrada para ${apt.name}`))
-                .catch(e => console.error("[Service Worker v22] Error al mostrar notificación:", e));
+                .then(() => console.log(`[Service Worker v23] Notificación mostrada para ${apt.name}`))
+                .catch(e => console.error("[Service Worker v23] Error al mostrar notificación:", e));
             
             // Marcar como notificada
             notifiedAppointmentIds.push(apt.id);
@@ -73,9 +71,8 @@ function startAlarmTimer() {
     if (alarmInterval) { clearInterval(alarmInterval); } 
     
     checkAppointments(); 
-    // Comprueba cada 30 segundos para mayor precisión
     alarmInterval = setInterval(checkAppointments, 30000); 
-    console.log('[Service Worker v22] Temporizador de alarma iniciado (cada 30 segundos).');
+    console.log('[Service Worker v23] Temporizador de alarma iniciado (cada 30 segundos).');
 }
 
 // =======================================================
@@ -84,7 +81,7 @@ function startAlarmTimer() {
 
 // Evento: Instalación (Precacheo)
 self.addEventListener('install', event => {
-  console.log('[Service Worker v22] Instalando y precacheando...');
+  console.log('[Service Worker v23] Instalando y precacheando...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
@@ -121,7 +118,7 @@ self.addEventListener('message', event => {
     if (event.data && event.data.type === 'UPDATE_APPOINTMENTS') {
         appointments = event.data.appointments;
         notifiedAppointmentIds = []; // Resetear para re-evaluar citas
-        console.log(`[Service Worker v22] Citas actualizadas. Total: ${appointments.length}`);
+        console.log(`[Service Worker v23] Citas actualizadas. Total: ${appointments.length}`);
         checkAppointments();
     }
 });
