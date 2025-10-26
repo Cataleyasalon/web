@@ -1,7 +1,7 @@
 {
   "name": "Cataleya Citas",
   "short_name": "Cataleya",
-  "description": "Sistema de citas con notificaciones automáticas.",
+  "description": "Gestor de citas con notificaciones automáticas.",
   "start_url": "index5.html",
   "display": "standalone",
   "background_color": "#0d1117",

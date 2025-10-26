@@ -1,193 +1,168 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cataleya Citas</title>
-  <link rel="manifest" href="manifest.json" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { sans: ['Inter', 'sans-serif'] },
-          colors: {
-            'primary-dark': '#0d1117',
-            'secondary-dark': '#161b22',
-            'accent': '#a78bfa',
-            'accent-hover': '#8b5cf6',
-            'cancel': '#f87171',
-            'day-base': '#1f2937',
-            'day-other': '#111827',
-          }
-        }
-      }
-    };
-  </script>
-  <style>
-    body {
-      background-color: #0d1117;
-      color: #d1d5db;
-      font-family: 'Inter', sans-serif;
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      padding-top: 20px;
-    }
-    .card { background-color: #161b22; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-    .appointment-item { border-left: 3px solid #a78bfa; }
-    .appointment-item:hover { background-color: #2d3748; }
-    .calendar-day { min-height: 75px; transition: all 0.2s; }
-    .calendar-day.active-month { cursor: pointer; }
-    .calendar-day.active-month:hover {
-      box-shadow: 0 0 10px rgba(167,139,250,0.3);
-      transform: scale(1.02);
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Cataleya Citas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<style>
+  body{background:#0d1117;color:#d1d5db;font-family:Inter,sans-serif;min-height:100vh;display:flex;justify-content:center;align-items:flex-start;padding-top:20px;}
+  .card{background:#161b22;box-shadow:0 10px 25px rgba(0,0,0,.5);}
+  .header-image-container{width:100%;max-height:150px;overflow:hidden;border-radius:.75rem .75rem 0 0;}
+  .header-image{width:100%;height:auto;display:block;object-fit:cover;}
+  .appointment-item{border-left:3px solid #a78bfa;}
+  .calendar-day{min-height:75px;transition:all .2s;}
+  .custom-scrollbar::-webkit-scrollbar{width:6px;}
+  .custom-scrollbar::-webkit-scrollbar-thumb{background:#4b5563;border-radius:3px;}
+  .custom-scrollbar::-webkit-scrollbar-track{background:#1f2937;}
+</style>
 </head>
 <body>
-  <audio id="reminder-sound" src="alarma.mp3" preload="auto"></audio>
 
-  <header class="text-center mb-6">
-    <img src="cabecera.png" alt="Cataleya Citas" class="mx-auto w-48 rounded-lg shadow-lg" />
-  </header>
+<audio id="reminder-sound" src="alarma.mp3" preload="auto"></audio>
 
-  <div id="app" class="card p-6 sm:p-8 lg:p-10 w-full max-w-lg rounded-xl mx-4 my-4">
+<div class="w-full max-w-lg mx-4 transition-all duration-300">
+  <div class="header-image-container">
+    <img src="cabecera.png" alt="Cabecera" class="header-image">
+  </div>
+
+  <div id="app" class="card p-6 sm:p-8 lg:p-10 w-full rounded-b-xl">
     <div id="view-container"></div>
 
     <div id="message-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
       <div class="bg-secondary-dark p-6 rounded-lg max-w-sm w-full text-center border border-accent">
         <p id="modal-text" class="text-white text-lg mb-4"></p>
-        <button onclick="closeModal()" class="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-lg transition duration-200">Entendido</button>
+        <button onclick="closeModal()" class="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-lg">Entendido</button>
       </div>
     </div>
   </div>
+</div>
 
-  <script>
-    const STORAGE_KEY = 'cataleya_appointments_data';
-    let currentView = 'home';
-    let currentCalendarDate = new Date();
-    let appointments = [];
-    const headers = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
-    const container = document.getElementById('view-container');
-    const modal = document.getElementById('message-modal');
-    const modalText = document.getElementById('modal-text');
-    const reminderSound = document.getElementById('reminder-sound');
+<script>
+const STORAGE_KEY='cataleya_appointments_data';
+let currentView='home';
+let currentCalendarDate=new Date();
+let appointments=[];
+let reminderTimer=null;
 
-    function showModal(t){ modalText.textContent=t; modal.classList.remove('hidden'); }
-    function closeModal(){ modal.classList.add('hidden'); }
+const viewContainer=document.getElementById('view-container');
+const modal=document.getElementById('message-modal');
+const modalText=document.getElementById('modal-text');
+const reminderSound=document.getElementById('reminder-sound');
 
-    function loadAppointments(){ return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'); }
-    function saveAppointments(a){ localStorage.setItem(STORAGE_KEY,JSON.stringify(a)); sendAppointmentsToSW(); }
+function showModal(msg){modalText.textContent=msg;modal.classList.remove('hidden');}
+function closeModal(){modal.classList.add('hidden');}
 
-    function registerServiceWorker(){
-      if('serviceWorker' in navigator){
-        navigator.serviceWorker.register('service-worker.js',{scope:'./'})
-        .then(()=>Notification.requestPermission())
-        .then(p=>{ if(p!=='granted') showModal('Debes permitir notificaciones.'); else sendAppointmentsToSW(); })
-        .catch(e=>console.error(e));
-      }
-    }
-    function sendAppointmentsToSW(){
-      if('serviceWorker' in navigator){
-        const data = loadAppointments();
-        navigator.serviceWorker.ready.then(r=>{
-          if(r.active) r.active.postMessage({type:'UPDATE_APPOINTMENTS',appointments:data});
-        });
-      }
-    }
+function saveAppointments(a){localStorage.setItem(STORAGE_KEY,JSON.stringify(a));sendToSW();}
+function loadAppointments(){return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');}
 
-    function setView(v){ currentView=v; renderView(); }
+function registerSW(){
+ if('serviceWorker'in navigator){
+  navigator.serviceWorker.register('service-worker.js',{scope:'./'})
+  .then(()=>Notification.requestPermission())
+  .then(()=>sendToSW());
+ }
+}
+function sendToSW(){
+ if('serviceWorker'in navigator){
+  navigator.serviceWorker.ready.then(r=>{if(r.active)r.active.postMessage({type:'UPDATE_APPOINTMENTS',appointments:appointments});});
+ }
+}
 
-    function renderHome(){
-      container.innerHTML = `
-        <div class='space-y-4'>
-          <button onclick="setView('manualAdd')" class='w-full bg-accent hover:bg-accent-hover text-white text-lg font-extrabold py-4 rounded-xl'>AGENDAR CITA</button>
-          <button onclick="setView('calendar')" class='w-full bg-secondary-dark hover:bg-gray-700 text-white py-3 rounded-lg border border-gray-700'>VER CALENDARIO</button>
-          <button onclick="setView('cancel')" class='w-full bg-cancel hover:bg-red-600 text-white py-3 rounded-lg border border-red-600'>CANCELAR CITA</button>
-        </div>`;
-    }
+function setView(v){currentView=v;renderView();}
 
-    function renderManualAdd(){
-      const now = new Date().toISOString().slice(0,16);
-      container.innerHTML = `
-        <h2 class='text-2xl font-bold text-white mb-6'>Agendar Cita</h2>
-        <form id='form' class='space-y-4'>
-          <input id='name' class='w-full p-3 rounded-lg bg-gray-800 text-white border border-gray-700' placeholder='Nombre del cliente' required>
-          <input type='datetime-local' id='date' class='w-full p-3 rounded-lg bg-gray-800 text-white border border-gray-700' value='${now}' required>
-          <button class='w-full bg-accent hover:bg-accent-hover text-white py-3 rounded-lg font-bold'>Confirmar Cita</button>
-          <button type='button' onclick="setView('home')" class='w-full bg-gray-600 hover:bg-gray-700 text-white py-2 rounded-lg'>Volver</button>
-        </form>`;
-      document.getElementById('form').onsubmit = e => {
-        e.preventDefault();
-        const n=document.getElementById('name').value.trim();
-        const d=document.getElementById('date').value;
-        if(!n||!d) return showModal('Completa todos los campos');
-        const id = crypto.randomUUID();
-        appointments.push({id,name:n,dateTime:new Date(d).toISOString()});
-        saveAppointments(appointments);
-        showModal('Cita agendada correctamente.');
-        setView('home');
-      };
-    }
+function renderHome(){
+ viewContainer.innerHTML=`
+ <div class='space-y-4'>
+   <button onclick="setView('add')" class='w-full bg-accent hover:bg-accent-hover text-white text-lg font-extrabold py-4 rounded-xl'>AGENDAR NUEVA CITA</button>
+   <button onclick="setView('calendar')" class='w-full bg-secondary-dark hover:bg-gray-700 text-white py-3 rounded-lg border border-gray-700'>VER CALENDARIO</button>
+   <button onclick="setView('cancel')" class='w-full bg-cancel hover:bg-red-600 text-white py-3 rounded-lg border border-red-600'>CANCELAR CITA</button>
+ </div>`;
+}
 
-    function renderCalendar(){
-      const y=currentCalendarDate.getFullYear(),m=currentCalendarDate.getMonth();
-      const first=new Date(y,m,1).getDay()||7,days=new Date(y,m+1,0).getDate();
-      const map=appointments.reduce((a,b)=>{const d=b.dateTime.slice(0,10);(a[d]=a[d]||[]).push(b);return a;},{});
-      let html='';for(let i=1;i<first;i++) html+='<div></div>';
-      for(let d=1;d<=days;d++){const key=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;const da=map[key]||[];
-        html+=`<div class='calendar-day bg-day-base border border-gray-700 active-month p-2' onclick="showDay('${key}')">
-          <div class='text-sm text-white font-bold'>${d}</div>
-          ${da.map(a=>`<p class='text-xs text-gray-300 truncate'>${a.name}</p>`).join('')}
-        </div>`;}
-      container.innerHTML = `
-        <div class='flex justify-between mb-4'>
-          <button onclick='setView("home")' class='bg-accent text-white px-3 py-1 rounded'><i class='fas fa-arrow-left'></i></button>
-          <h2 class='text-white font-bold text-lg'>${currentCalendarDate.toLocaleDateString('es-ES',{month:'long',year:'numeric'})}</h2>
-          <div>
-            <button onclick='changeMonth(-1)' class='text-accent'><i class='fas fa-chevron-left'></i></button>
-            <button onclick='changeMonth(1)' class='text-accent'><i class='fas fa-chevron-right'></i></button>
-          </div>
-        </div>
-        <div class='grid grid-cols-7 gap-1 text-center text-accent mb-2'>${headers.map(h=>`<div>${h}</div>`).join('')}</div>
-        <div class='grid grid-cols-7 gap-1'>${html}</div>`;
-    }
+function renderAdd(){
+ const now=new Date().toISOString().slice(0,16);
+ viewContainer.innerHTML=`
+ <h2 class='text-2xl font-bold text-white mb-6'>Agendar Cita</h2>
+ <form id='form' class='space-y-4'>
+   <input id='name' class='w-full p-3 rounded-lg bg-gray-800 text-white border border-gray-700' placeholder='Nombre del cliente' required>
+   <input type='datetime-local' id='date' class='w-full p-3 rounded-lg bg-gray-800 text-white border border-gray-700' value='${now}' required>
+   <button class='w-full bg-accent hover:bg-accent-hover text-white py-3 rounded-lg font-bold'>Confirmar Cita</button>
+   <button type='button' onclick="setView('home')" class='w-full bg-gray-600 hover:bg-gray-700 text-white py-2 rounded-lg'>Volver</button>
+ </form>`;
+ document.getElementById('form').onsubmit=e=>{
+   e.preventDefault();
+   const n=document.getElementById('name').value.trim();
+   const d=document.getElementById('date').value;
+   if(!n||!d)return showModal('Completa todos los campos');
+   appointments.push({id:crypto.randomUUID(),name:n,dateTime:new Date(d).toISOString()});
+   saveAppointments(appointments);
+   startReminder();
+   showModal('Cita agendada correctamente.');
+   setView('home');
+ };
+}
 
-    function renderCancel(){
-      if(!appointments.length){ container.innerHTML='<p class="text-center text-gray-400 py-8">No hay citas.</p>'; return; }
-      container.innerHTML = appointments.map(a=>`
-        <div class='appointment-item p-3 mb-2 bg-secondary-dark rounded-lg flex justify-between'>
-          <div><p class='text-accent font-bold'>${a.name}</p><p class='text-xs text-gray-400'>${new Date(a.dateTime).toLocaleString('es-ES')}</p></div>
-          <button onclick="cancelAppointment('${a.id}')" class='text-cancel'><i class='fas fa-trash'></i></button>
-        </div>`).join('')+`<button onclick='setView("home")' class='w-full mt-4 bg-gray-600 hover:bg-gray-700 text-white py-2 rounded'>Volver</button>`;
-    }
+function renderCalendar(){
+ const y=currentCalendarDate.getFullYear(),m=currentCalendarDate.getMonth();
+ const first=new Date(y,m,1).getDay()||7,days=new Date(y,m+1,0).getDate();
+ const map=appointments.reduce((a,b)=>{const d=b.dateTime.slice(0,10);(a[d]=a[d]||[]).push(b);return a;},{});
+ let html='';for(let i=1;i<first;i++)html+='<div></div>';
+ for(let d=1;d<=days;d++){const k=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;const da=map[k]||[];
+  html+=`<div class='calendar-day bg-day-base border border-gray-700 active-month p-2' onclick="showDay('${k}')">
+    <div class='text-sm text-white font-bold'>${d}</div>
+    ${da.map(a=>`<p class='text-xs text-gray-300 truncate'>${a.name}</p>`).join('')}
+  </div>`;}
+ viewContainer.innerHTML=`
+   <div class='flex justify-between mb-4'>
+     <button onclick='setView("home")' class='bg-accent text-white px-3 py-1 rounded'><i class='fas fa-arrow-left'></i></button>
+     <h2 class='text-white font-bold text-lg'>${currentCalendarDate.toLocaleDateString('es-ES',{month:'long',year:'numeric'})}</h2>
+     <div>
+       <button onclick='changeMonth(-1)' class='text-accent'><i class='fas fa-chevron-left'></i></button>
+       <button onclick='changeMonth(1)' class='text-accent'><i class='fas fa-chevron-right'></i></button>
+     </div>
+   </div>
+   <div class='grid grid-cols-7 gap-1 text-center text-accent mb-2'>${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(h=>`<div>${h}</div>`).join('')}</div>
+   <div class='grid grid-cols-7 gap-1'>${html}</div>`;
+}
 
-    function showDay(k){
-      const apps=appointments.filter(a=>a.dateTime.startsWith(k));
-      if(apps.length===0) return showModal('No hay citas en esta fecha.');
-      const msg=apps.map(a=>`${a.name} - ${new Date(a.dateTime).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}`).join('\n');
-      showModal('Citas para '+new Date(k).toLocaleDateString('es-ES')+'\n\n'+msg);
-    }
+function renderCancel(){
+ if(!appointments.length){viewContainer.innerHTML='<p class="text-center text-gray-400 py-8">No hay citas.</p>';return;}
+ viewContainer.innerHTML=appointments.map(a=>`
+ <div class='appointment-item p-3 mb-2 bg-secondary-dark rounded-lg flex justify-between'>
+  <div><p class='text-accent font-bold'>${a.name}</p><p class='text-xs text-gray-400'>${new Date(a.dateTime).toLocaleString('es-ES')}</p></div>
+  <button onclick="cancelAppointment('${a.id}')" class='text-cancel'><i class='fas fa-trash'></i></button>
+ </div>`).join('')+`<button onclick='setView("home")' class='w-full mt-4 bg-gray-600 hover:bg-gray-700 text-white py-2 rounded'>Volver</button>`;
+}
 
-    function renderView(){ appointments=loadAppointments(); if(currentView==='manualAdd')renderManualAdd(); else if(currentView==='calendar')renderCalendar(); else if(currentView==='cancel')renderCancel(); else renderHome(); }
-    function cancelAppointment(id){ appointments=appointments.filter(a=>a.id!==id); saveAppointments(appointments); renderCancel(); }
+function showDay(k){
+ const apps=appointments.filter(a=>a.dateTime.startsWith(k));
+ if(!apps.length)return showModal('No hay citas en esta fecha.');
+ const msg=apps.map(a=>`${a.name} - ${new Date(a.dateTime).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}`).join('\n');
+ showModal('Citas para '+new Date(k).toLocaleDateString('es-ES')+'\n\n'+msg);
+}
 
-    function changeMonth(o){ currentCalendarDate.setMonth(currentCalendarDate.getMonth()+o); renderCalendar(); }
+function changeMonth(o){currentCalendarDate.setMonth(currentCalendarDate.getMonth()+o);renderCalendar();}
+function cancelAppointment(id){appointments=appointments.filter(a=>a.id!==id);saveAppointments(appointments);renderCancel();}
 
-    function checkUpcoming(){
-      const now=Date.now();const future=appointments.filter(a=>new Date(a.dateTime).getTime()>now);
-      if(future.length>0){
-        const next=future.sort((a,b)=>new Date(a.dateTime)-new Date(b.dateTime))[0];
-        const msg=`Cita con ${next.name} a las ${new Date(next.dateTime).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}`;
-        new Notification('🔔 Cita próxima',{body:msg,icon:'icono192.png'});
-        reminderSound.play().catch(()=>{});
-      }
-    }
+function renderView(){appointments=loadAppointments();if(currentView==='add')renderAdd();else if(currentView==='calendar')renderCalendar();else if(currentView==='cancel')renderCancel();else renderHome();}
 
-    document.addEventListener('DOMContentLoaded',()=>{ appointments=loadAppointments(); renderView(); registerServiceWorker(); setInterval(checkUpcoming,300000); });
-  </script>
+function startReminder(){
+ if(reminderTimer)return;
+ reminderTimer=setInterval(()=>{
+   const now=Date.now();
+   const future=appointments.filter(a=>new Date(a.dateTime)>now);
+   if(!future.length)return;
+   const next=future.sort((a,b)=>new Date(a.dateTime)-new Date(b.dateTime))[0];
+   new Notification('🔔 Próxima cita',{body:`Cita con ${next.name} a las ${new Date(next.dateTime).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}`,icon:'icono192.png'});
+   reminderSound.play().catch(()=>{});
+ },300000);
+}
+
+document.addEventListener('DOMContentLoaded',()=>{appointments=loadAppointments();renderView();registerSW();if(appointments.length)startReminder();});
+</script>
 </body>
 </html>
