@@ -189,9 +189,13 @@
         
         /**
          * Registra el Service Worker y solicita permisos de notificación.
+         * Se asume que el Service Worker está en la raíz de /web/
+
          */
         function registerServiceWorker() {
             if ('serviceWorker' in navigator) {
+                // 🚨 RUTA CORREGIDA: Asume que Service Worker está en la misma carpeta que index5.html
+                // Si la carpeta es /web/, el scope será /web/
                 navigator.serviceWorker.register('service-worker.js', { scope: './' }) 
                     .then(reg => {
                         console.log('Service Worker registrado con éxito. Scope:', reg.scope);

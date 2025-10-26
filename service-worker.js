@@ -1,9 +1,9 @@
 // service-worker.js
 
-const CACHE_NAME = 'cataleya-cache-v9'; // Versión 9 para forzar la actualización
+const CACHE_NAME = 'cataleya-cache-v10'; // Versión 10 para forzar la actualización y corregir el bug
 const urlsToCache = [
-    // La ruta debe ser relativa desde la raíz del Service Worker
-    './', // Ruta raíz para el Service Worker
+    // Usamos rutas relativas (se asume que SW está en el mismo directorio que index5.html)
+    './', 
     'index5.html', 
     'manifest.json',
     'icono192.png',
@@ -25,7 +25,7 @@ let alarmInterval = null;
  * Dispara la notificación del sistema operativo.
  */
 function checkAppointments() {
-    console.log('[Service Worker v9] Chequeando citas...');
+    console.log('[Service Worker v10] Chequeando citas...');
     const now = Date.now();
     
     // ?? VENTANA DE ACTIVACIÓN DE LA ALARMA (CRÍTICO):
@@ -50,10 +50,10 @@ function checkAppointments() {
                 
                 // Calcular los minutos restantes (usado en el mensaje)
                 const timeDifference = aptTime - now;
-                const minutesLeft = Math.ceil(timeDifference / 60000); 
+                const minutesLeft = Math.max(1, Math.floor(timeDifference / 60000)); // Asegura que el mínimo sea 1
                 
                 const options = {
-                    body: `La cita con ${apt.name} es a las ${timeDisplay}. Faltan ${minutesLeft} minutos.`,
+                    body: `La cita con ${apt.name} es a las ${timeDisplay}. Faltan aproximadamente ${minutesLeft} minutos.`,
                     icon: 'icono192.png', 
                     tag: `cita-proxima-${apt.id}`, 
                     sound: 'alarma.mp3', 
@@ -62,8 +62,8 @@ function checkAppointments() {
 
                 // Mostrar la notificación
                 self.registration.showNotification('?? ALARMA DE CITA PRÓXIMA ??', options)
-                    .then(() => console.log(`[Service Worker v9] Notificación mostrada para ${apt.name}`))
-                    .catch(e => console.error("[Service Worker v9] Error al mostrar notificación:", e));
+                    .then(() => console.log(`[Service Worker v10] Notificación mostrada para ${apt.name}`))
+                    .catch(e => console.error("[Service Worker v10] Error al mostrar notificación:", e));
                 
                 // Marcar como notificada
                 notifiedAppointmentIds.push(apt.id);
@@ -83,9 +83,9 @@ function startAlarmTimer() {
     if (alarmInterval) { clearInterval(alarmInterval); } 
     
     checkAppointments(); 
-    // Intervalo de chequeo más corto (30 segundos) para no fallar el margen
+    // Intervalo de chequeo de 30 segundos
     alarmInterval = setInterval(checkAppointments, 30000); 
-    console.log('[Service Worker v9] Temporizador de alarma iniciado (cada 30 segundos).');
+    console.log('[Service Worker v10] Temporizador de alarma iniciado (cada 30 segundos).');
 }
 
 // =======================================================
@@ -94,11 +94,10 @@ function startAlarmTimer() {
 
 // Evento: Instalación
 self.addEventListener('install', event => {
-  console.log('[Service Worker v9] Instalando y precacheando...');
+  console.log('[Service Worker v10] Instalando y precacheando...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
-
       .catch(error => console.error('Fallo al precachear archivos:', error))
   );
   self.skipWaiting(); 
