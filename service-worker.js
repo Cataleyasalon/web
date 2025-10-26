@@ -1,9 +1,7 @@
-// service-worker v34 - attempts to keep appointments and show notifications even if page closed.
-// Note: Background execution depends on browser & whether PWA is installed. Install PWA for best results.
-
-const CACHE_NAME = 'cataleya-v34-cache';
+// service-worker v35 - robust background notifications and timer (best-effort)
+// It receives appointments via postMessage and will check every 5 minutes
+const CACHE_NAME = 'cataleya-v35-cache';
 const ASSETS = ['index5.html','manifest.json','icono192.png','icono512.png','cabecera.png','alarma.mp3'];
-
 let appointments = [];
 let notified = [];
 let timer = null;
@@ -28,20 +26,21 @@ self.addEventListener('message', evt=>{
   if(data.type === 'UPDATE_APPOINTMENTS'){
     try{
       appointments = ensureArray(data.appointments);
-      // reset notified to avoid stuck state
+      // reset notified list if provided
       notified = [];
     }catch(e){ appointments = []; }
   } else if(data.type === 'SHOW_NOTIFICATION'){
-    // allow page to ask SW to show a notification
     const title = data.title || 'Notificación';
     const options = data.options || {};
     self.registration.showNotification(title, options);
+  } else if(data.type === 'PLAY_ALARM_SOUND'){
+    // tell clients to play sound
+    self.clients.matchAll({type:'window'}).then(clients=>clients.forEach(c=>c.postMessage({type:'PLAY_ALARM_SOUND'})));
   }
 });
 
 function startTimer(){
   if(timer) return;
-  // check immediately and every 5 minutes
   const check = ()=>{
     const now = Date.now();
     appointments = ensureArray(appointments);
@@ -49,15 +48,14 @@ function startTimer(){
       try{
         const t = new Date(a.dateTime).getTime();
         const diff = t - now;
-        // if appointment within next 5 minutes and not yet notified
         if(diff > 0 && diff <= 5*60*1000 && !notified.includes(a.id)){
-          // show notification
           const title = `🔔 Cita con ${a.name}`;
-          const body = `Tu cita es a las ${new Date(a.dateTime).toLocaleTimeString()}`;
-          const options = { body, icon: 'icono192.png', badge: 'icono192.png', data: { id: a.id } };
+          const dateStr = new Date(a.dateTime).toLocaleString('es-ES',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+          const body = `💜 Recuerda tu cita el ${dateStr}`;
+          const options = { body, icon: '/icono192.png', badge: '/icono192.png', data:{ id: a.id }, requireInteraction: true };
           self.registration.showNotification(title, options);
           notified.push(a.id);
-          // inform clients to play sound if they exist
+          // ask clients to play sound if they exist
           self.clients.matchAll({type:'window'}).then(clients=>clients.forEach(c=>c.postMessage({type:'PLAY_ALARM_SOUND'})));
         }
       }catch(e){ console.error('check err', e); }
@@ -67,7 +65,6 @@ function startTimer(){
   timer = setInterval(check, 5*60*1000);
 }
 
-// notification click behavior
 self.addEventListener('notificationclick', event=>{
   event.notification.close();
   event.waitUntil(clients.matchAll({ type: 'window' }).then( cList => {

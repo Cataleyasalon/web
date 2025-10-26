@@ -7,12 +7,12 @@
 <link rel="manifest" href="manifest.json">
 <style>
 :root{
-  --bg:#1a1f25; --card:rgba(255,255,255,0.03); --glass:rgba(167,139,250,0.10);
-  --purple:#a78bfa; --purple-2:#8b5cf6; --muted:#cbd5e1;
+  --bg:#1a232b; --card:rgba(255,255,255,0.03); --glass:rgba(167,139,250,0.10);
+  --purple:#a78bfa; --purple-2:#8b5cf6; --muted:#cbd5e1; --accent:#8b5cf6;
 }
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;background:var(--bg);color:var(--muted);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;display:flex;align-items:flex-start;justify-content:center;padding:28px;}
-.container{width:100%;max-width:900px;}
+.container{width:100%;max-width:920px;}
 .header{border-radius:12px 12px 0 0;overflow:hidden;height:150px;background:linear-gradient(90deg,var(--purple),var(--purple-2));display:flex;align-items:center;justify-content:center;color:white;font-size:20px;font-weight:700}
 .card{background:var(--card);backdrop-filter:blur(6px);padding:20px;border-radius:0 0 12px 12px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
 .row{display:grid;grid-template-columns:1fr;gap:12px}
@@ -25,7 +25,9 @@ body{margin:0;min-height:100vh;background:var(--bg);color:var(--muted);font-fami
 .list-item{background:var(--glass);padding:12px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;border:1px solid rgba(167,139,250,0.12);margin-bottom:8px}
 .small{font-size:13px;color:#e6e9ef}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center}
-.modal-card{background:rgba(20,24,30,0.8);border:1px solid rgba(167,139,250,0.14);padding:18px;border-radius:12px;color:var(--muted);backdrop-filter:blur(6px);max-width:480px}
+.modal-card{background:rgba(20,24,30,0.9);border:1px solid rgba(167,139,250,0.14);padding:18px;border-radius:12px;color:var(--muted);backdrop-filter:blur(6px);max-width:520px;width:100%}
+.calendar-footer{position:sticky;bottom:12px;display:flex;justify-content:center;padding-top:12px}
+.fixed-back{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;z-index:50}
 .footer-note{font-size:12px;color:#9aa4b2;margin-top:10px;text-align:center}
 </style>
 </head>
@@ -34,37 +36,63 @@ body{margin:0;min-height:100vh;background:var(--bg);color:var(--muted);font-fami
   <div class="header">Cataleya Citas</div>
   <div class="card">
     <div id="app" class="row"></div>
-    <div class="footer-note">Instala como PWA para recibir notificaciones aún con la app cerrada.</div>
+    <div class="footer-note">Instala como PWA para recibir notificaciones incluso con la app cerrada.</div>
   </div>
 </div>
 
-<!-- audio for reminders -->
-<audio id="alarm" src="alarma.mp3" preload="auto"></audio>
+<!-- audio for reminders - will loop when requested -->
+<audio id="alarm" src="alarma.mp3" preload="auto" loop></audio>
 
 <!-- App script -->
 <script>
-const STORAGE_KEY = 'cataleya_v34_appointments';
+const STORAGE_KEY = 'cataleya_v35_appointments';
 let appointments = [];
 let reminderTimer = null;
+let playingAlarm = false;
 
 const app = document.getElementById('app');
 const alarm = document.getElementById('alarm');
 
 function showModal(text){
-  let m = document.createElement('div'); m.className='modal'; m.innerHTML=`
-    <div class="modal-card"><div>${text.replace(/\n/g,'<br>')}</div><div style="text-align:right;margin-top:12px"><button id="mclose" class="btn btn-primary">Entendido</button></div></div>`;
+  const m = document.createElement('div'); m.className='modal'; m.innerHTML=`
+    <div class="modal-card"><div id="modal-content">${text.replace(/\n/g,'<br>')}</div><div style="text-align:right;margin-top:12px"><button id="mclose" class="btn btn-primary">Entendido</button></div></div>`;
   document.body.appendChild(m);
-  document.getElementById('mclose').onclick = ()=> document.body.removeChild(m);
+  document.getElementById('mclose').onclick = ()=> {
+    stopAlarmLoop();
+    document.body.removeChild(m);
+  };
 }
 
 function ensureArray(v){ return Array.isArray(v)? v : []; }
 
-function load(){ try{ const raw = localStorage.getItem(STORAGE_KEY); const parsed = raw ? JSON.parse(raw) : []; appointments = ensureArray(parsed); }catch(e){ console.warn('load error', e); appointments = []; localStorage.removeItem(STORAGE_KEY); } return appointments; }
-function save(a){ try{ const arr = ensureArray(a); appointments = arr; localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); // inform service worker
-  if(navigator.serviceWorker && navigator.serviceWorker.controller){
-    navigator.serviceWorker.controller.postMessage({type:'UPDATE_APPOINTMENTS', appointments: arr});
-  } 
-  return true; }catch(e){ console.error(e); return false; } }
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    appointments = ensureArray(parsed).map(a=>{
+      return { id:a.id, name:a.name, dateTime:a.dateTime, createdAt:a.createdAt || null, notified:!!a.notified };
+    });
+  }catch(e){
+    console.warn('load error', e);
+    appointments = [];
+    localStorage.removeItem(STORAGE_KEY);
+  }
+  return appointments;
+}
+
+function save(a){
+  try{
+    const arr = ensureArray(a);
+    appointments = arr;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+    if(navigator.serviceWorker && navigator.serviceWorker.controller){
+      try{ navigator.serviceWorker.controller.postMessage({ type:'UPDATE_APPOINTMENTS', appointments: arr }); }catch(e){ console.warn('postMessage failed', e); }
+    }
+    return true;
+  }catch(e){
+    console.error(e); return false;
+  }
+}
 
 // UI renderers
 function renderHome(){
@@ -94,7 +122,7 @@ function renderAdd(){
     if(!name || !date) return showModal('⚠️ Debes completar todos los campos.');
     const dt = new Date(date);
     if(isNaN(dt.getTime())) return showModal('❌ Fecha inválida');
-    const apt = { id: 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2), name, dateTime: dt.toISOString(), createdAt: new Date().toISOString() };
+    const apt = { id: 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2), name, dateTime: dt.toISOString(), createdAt: new Date().toISOString(), notified:false };
     const arr = ensureArray(load()); arr.push(apt);
     const ok = save(arr);
     if(ok){ showModal('✅ La cita se registró con éxito'); startReminder(); setTimeout(()=> renderHome(),900); } else showModal('❌ No se pudo guardar la cita');
@@ -135,10 +163,11 @@ function renderCalendar(){
   for(let i=1;i<first;i++) grid += '<div></div>';
   for(let d=1; d<=days; d++){
     const key = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const da = map[key] || [];
-    grid += `<div class="list-item" onclick="showDay('${key}')"><div style="text-align:right;font-weight:700">${d}</div><div>${da.map(x=>`<div class='small'>${x.name}</div>`).join('')}</div></div>`;
+    const da = (map[key]||[]).sort((a,b)=> new Date(a.dateTime)-new Date(b.dateTime));
+    const items = da.slice(0,2).map(x=>`<div class='small'>${x.name} - ${new Date(x.dateTime).toLocaleTimeString()}</div>`).join('');
+    grid += `<div class="list-item" onclick="showDay('${key}')"><div style="text-align:right;font-weight:700">${d}</div><div>${items}</div></div>`;
   }
-  app.innerHTML = `<h3 style="color:white">${currentCalendarDate.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</h3><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px">${grid}</div><div style="text-align:center;margin-top:12px"><button id="back" class="btn btn-primary" style="font-size:18px;padding:12px 20px"><span style="margin-right:10px">⬅️</span>Volver al menú</button></div>`;
+  app.innerHTML = `<h3 style="color:white">${currentCalendarDate.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</h3><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px">${grid}</div><div class="fixed-back"><button id="back" class="btn btn-primary" style="font-size:18px;padding:12px 20px"><span style="margin-right:10px">⬅️</span>Volver al menú</button></div>`;
   document.getElementById('back').onclick = ()=> renderHome();
 }
 
@@ -152,43 +181,56 @@ function renderCancel(){
 
 function showDay(k){
   load();
-  const list = appointments.filter(a=> a.dateTime.startsWith(k));
+  const list = appointments.filter(a=> a.dateTime.startsWith(k)).sort((a,b)=> new Date(a.dateTime)-new Date(b.dateTime));
   if(!list.length) return showModal('No hay citas en esta fecha.');
   showModal(list.map(a=> `${a.name} - ${new Date(a.dateTime).toLocaleTimeString()}`).join('\n'));
+}
+
+// Alarm controls: loop sound until stopped
+function playAlarmLoop(){
+  try{
+    alarm.loop = true;
+    alarm.currentTime = 0;
+    alarm.play().catch(()=>{});
+    playingAlarm = true;
+  }catch(e){ console.warn('play failed', e); playingAlarm=false; }
+}
+function stopAlarmLoop(){
+  try{ alarm.pause(); alarm.currentTime = 0; playingAlarm = false; }catch(e){}
 }
 
 // Reminder logic: starts/continues a 5-minute checker and notifies 5 minutes before
 function startReminder(){
   if(reminderTimer) return;
-  // run immediately then every 5 minutes
   const check = ()=>{
     load();
     const now = Date.now();
-    // find appointments where (dateTime - now) is between 0 and 5*60*1000 (i.e., within next 5 minutes)
     const upcoming = appointments.filter(a=>{
       const t = new Date(a.dateTime).getTime();
       const diff = t - now;
-      return diff > 0 && diff <= 5*60*1000 && !a._notified;
+      return diff > 0 && diff <= 5*60*1000 && !a.notified;
     });
     upcoming.forEach(a=>{
-      // mark local to avoid duplicate notifications in same session
-      a._notified = true;
-      // show detailed notification via service worker (if registered) or Notification API
+      // mark as notified in storage
+      a.notified = true;
+      // friendly message with full date
+      const dateStr = new Date(a.dateTime).toLocaleString('es-ES',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
       const title = `🔔 Cita con ${a.name}`;
-      const body = `Tu cita es a las ${new Date(a.dateTime).toLocaleTimeString()}`;
-      const options = { body, icon: 'icono192.png', badge: 'icono192.png', data: { id: a.id } };
-      // try via service worker for better background behavior
+      const body = `💜 Recuerda tu cita el ${dateStr}`;
+      const options = { body, icon: 'icono192.png', badge:'icono192.png', data:{ id:a.id } , requireInteraction: true };
+      // Try via service worker for background notification
       if(navigator.serviceWorker && navigator.serviceWorker.controller){
-        try{ navigator.serviceWorker.controller.postMessage({ type: 'SHOW_NOTIFICATION', title, options }); }catch(e){ console.warn('sw post failed', e); new Notification(title, options); }
+        try{ navigator.serviceWorker.controller.postMessage({ type:'SHOW_NOTIFICATION', title, options }); }catch(e){ try{ new Notification(title, options); }catch(e){} }
       } else {
-        try{ new Notification(title, options); }catch(e){ console.warn('Notification failed', e); }
+        try{ new Notification(title, options); }catch(e){}
       }
-      // try play sound (works only if page has audio context open)
-      try{ alarm.currentTime = 0; alarm.play().catch(()=>{}); }catch(e){}
+      // if clients exist, request playing sound loop
+      if(navigator.serviceWorker && navigator.serviceWorker.controller){
+        try{ navigator.serviceWorker.controller.postMessage({ type:'PLAY_ALARM_SOUND' }); }catch(e){}
+      }
     });
-    // persist notified flags to storage (remove transient flags before save)
-    const clean = appointments.map(a=>{ const copy = Object.assign({}, a); delete copy._notified; return copy; });
-    save(clean);
+    // persist notified flags
+    save(appointments);
   };
   check();
   reminderTimer = setInterval(check, 5*60*1000);
@@ -205,9 +247,30 @@ async function registerSW(){
         reg.active.postMessage({ type: 'UPDATE_APPOINTMENTS', appointments: load() });
       }
       navigator.serviceWorker.addEventListener('message', ev=>{
-        if(ev.data && ev.data.type === 'PLAY_ALARM_SOUND'){ try{ alarm.currentTime = 0; alarm.play().catch(()=>{});}catch(e){} }
+        if(ev.data && ev.data.type === 'PLAY_ALARM_SOUND'){
+          // SW asks client to play sound loop
+          playAlarmLoop();
+        } else if(ev.data && ev.data.type === 'STOP_ALARM_SOUND'){
+          stopAlarmLoop();
+        }
       });
     }catch(e){ console.warn('SW register failed', e); }
+  }
+}
+
+// When app opens after notification, check for recent appointments that were within last 30 minutes and show modal
+function checkRecentAlerts(){
+  load();
+  const now = Date.now();
+  const recent = appointments.filter(a=>{
+    const t = new Date(a.dateTime).getTime();
+    return now >= t && (now - t) <= 30*60*1000 && a.notified;
+  });
+  if(recent.length){
+    const msg = recent.map(a=>`💜 Tenías una cita con ${a.name} el ${new Date(a.dateTime).toLocaleString('es-ES',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'})}`).join('\n\n');
+    showModal(msg);
+    // stop alarm if any
+    stopAlarmLoop();
   }
 }
 
@@ -216,7 +279,16 @@ function ensureNotificationPermission(){ if(Notification.permission !== 'granted
 
 // init
 let currentCalendarDate = new Date();
-document.addEventListener('DOMContentLoaded', ()=>{ load(); renderHome(); registerSW(); ensureNotificationPermission(); if(appointments.length) startReminder(); });
+document.addEventListener('DOMContentLoaded', ()=>{
+  load();
+  renderHome();
+  registerSW();
+  ensureNotificationPermission();
+  // start reminder if any future appointments exist
+  if(appointments.some(a=> new Date(a.dateTime).getTime() > Date.now())) startReminder();
+  // check if opened after recent alert
+  setTimeout(()=> checkRecentAlerts(), 800);
+});
 
 </script>
 </body>
