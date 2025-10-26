@@ -1,15 +1,15 @@
 // service-worker.js
 
-const CACHE_NAME = 'cataleya-cache-v24'; // VersiÃ³n 24 para forzar la actualizaciÃ³n del cachÃ©
+// ?? CRÍTICO: Nueva versión para forzar la actualización y limpieza total del caché
+const CACHE_NAME = 'cataleya-cache-v25'; 
 const urlsToCache = [
-    // Usamos rutas relativas (asume que SW estÃ¡ en el mismo directorio que los demÃ¡s archivos)
-    './', 
-    'index5.html', 
-    'manifest.json',
-    'icono192.png',
-    'icono512.png',
-    'cabecera.png', 
-    'alarma.mp3' 
+    // Usamos rutas relativas (ajuste la ruta si su carpeta 'web' es el inicio)
+    './index5.html', 
+    './manifest.json',
+    './icono192.png',
+    './icono512.png',
+    './cabecera.png', 
+    './alarma.mp3' 
 ];
 
 let appointments = [];
@@ -17,24 +17,24 @@ let notifiedAppointmentIds = [];
 let alarmInterval = null;
 
 // =======================================================
-// LÃ“GICA DE ALARMA EN SEGUNDO PLANO
+// LÓGICA DE ALARMA EN SEGUNDO PLANO
 // =======================================================
 
 /**
- * Chequea si alguna cita es en menos de 5 minutos y dispara la notificaciÃ³n.
+ * Chequea si alguna cita es en menos de 5 minutos y dispara la notificación.
  */
 function checkAppointments() {
-    console.log('[Service Worker v24] Chequeando citas...');
+    console.log('[Service Worker v25] Chequeando citas...');
     const now = Date.now();
     
-    // Ventana de activaciÃ³n de la alarma (Hasta 5 minutos en el futuro)
+    // Ventana de activación de la alarma (Hasta 5 minutos en el futuro)
     const FIVE_MINUTES_MS = 5 * 60 * 1000;
 
     appointments.forEach(apt => {
         const aptTime = new Date(apt.dateTime).getTime();
         const timeDifference = aptTime - now;
         
-        // 1. Verificar si la cita es futura y estÃ¡ dentro de 5 minutos
+        // 1. Verificar si la cita es futura y está dentro de 5 minutos
         if (timeDifference > 0 && timeDifference <= FIVE_MINUTES_MS && !notifiedAppointmentIds.includes(apt.id)) {
             
             const timeDisplay = new Date(apt.dateTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
@@ -42,20 +42,25 @@ function checkAppointments() {
             
             const options = {
                 body: `La cita con ${apt.name} es a las ${timeDisplay}. Faltan ${minutesLeft} minutos.`,
-                icon: 'icono192.png', 
-                badge: 'icono192.png', 
-                sound: 'alarma.mp3', 
+                icon: './icono192.png', // Usar rutas relativas al SW
+                badge: './icono192.png', 
+                sound: './alarma.mp3', 
                 vibrate: [200, 100, 200],
                 tag: `cita-proxima-${apt.id}`
             };
 
-            // Mostrar la notificaciÃ³n
-            self.registration.showNotification('ðŸš¨ ALARMA DE CITA PRÃ“XIMA ðŸš¨', options)
-                .then(() => console.log(`[Service Worker v24] NotificaciÃ³n mostrada para ${apt.name}`))
-                .catch(e => console.error("[Service Worker v24] Error al mostrar notificaciÃ³n:", e));
+            // Mostrar la notificación
+            self.registration.showNotification('?? ALARMA DE CITA PRÓXIMA ??', options)
+                .then(() => console.log(`[Service Worker v25] Notificación mostrada para ${apt.name}`))
+                .catch(e => console.error("[Service Worker v25] Error al mostrar notificación:", e));
             
             // Marcar como notificada
             notifiedAppointmentIds.push(apt.id);
+            
+            // Avisar a la app si está abierta para que reproduzca el sonido
+            self.clients.matchAll({ type: 'window' }).then(clients => {
+                clients.forEach(client => client.postMessage({ type: 'PLAY_ALARM_SOUND' }));
+            });
         }
         // Limpiar IDs de notificaciones pasadas
         else if (timeDifference < 0 && notifiedAppointmentIds.includes(apt.id)) {
@@ -72,16 +77,16 @@ function startAlarmTimer() {
     
     checkAppointments(); 
     alarmInterval = setInterval(checkAppointments, 30000); 
-    console.log('[Service Worker v24] Temporizador de alarma iniciado (cada 30 segundos).');
+    console.log('[Service Worker v25] Temporizador de alarma iniciado (cada 30 segundos).');
 }
 
 // =======================================================
-// MANEJO DE EVENTOS ESTÃNDAR DEL SW (Cacheo)
+// MANEJO DE EVENTOS ESTÁNDAR DEL SW (Cacheo)
 // =======================================================
 
-// Evento: InstalaciÃ³n (Precacheo)
+// Evento: Instalación (Precacheo)
 self.addEventListener('install', event => {
-  console.log('[Service Worker v24] Instalando y precacheando...');
+  console.log('[Service Worker v25] Instalando y precacheando...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
@@ -90,13 +95,15 @@ self.addEventListener('install', event => {
   self.skipWaiting(); 
 });
 
-// Evento: ActivaciÃ³n (Limpieza de cachÃ©s viejas e inicio de alarma)
+// Evento: Activación (Limpieza de cachés viejas e inicio de alarma)
 self.addEventListener('activate', event => {
     const cacheWhitelist = [CACHE_NAME];
     event.waitUntil(
         caches.keys().then(cacheNames => Promise.all(
             cacheNames.map(cacheName => {
+                // Elimina todos los cachés que no sean v25
                 if (cacheWhitelist.indexOf(cacheName) === -1) {
+                    console.log(`[Service Worker v25] Eliminando caché antigua: ${cacheName}`);
                     return caches.delete(cacheName);
                 }
             })
@@ -105,7 +112,7 @@ self.addEventListener('activate', event => {
     );
 });
 
-// Evento: Fetch (Servir desde cachÃ© o red)
+// Evento: Fetch (Servir desde caché o red)
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request)
@@ -117,8 +124,8 @@ self.addEventListener('fetch', event => {
 self.addEventListener('message', event => {
     if (event.data && event.data.type === 'UPDATE_APPOINTMENTS') {
         appointments = event.data.appointments;
-        notifiedAppointmentIds = []; // Resetear para re-evaluar citas
-        console.log(`[Service Worker v24] Citas actualizadas. Total: ${appointments.length}`);
+        notifiedAppointmentIds = []; 
+        console.log(`[Service Worker v25] Citas actualizadas. Total: ${appointments.length}`);
         checkAppointments();
     }
 });
