@@ -6,12 +6,13 @@
   <title>Sistema de Citas</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: { sans: ['Inter', 'sans-serif'], },
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
           colors: {
             'primary-dark': '#0d1117',
             'secondary-dark': '#161b22',
@@ -20,7 +21,7 @@
             'cancel': '#f87171',
             'day-base': '#1f2937',
             'day-current': '#374151',
-            'day-other': '#111827',
+            'day-other': '#111827'
           }
         }
       }
@@ -50,7 +51,6 @@
     .header-image {
       width: 100%;
       height: auto;
-      display: block;
       object-fit: cover;
     }
     .appointment-item { border-left: 3px solid #a78bfa; }
@@ -66,14 +66,12 @@
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: #1f2937; }
   </style>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 </head>
 <body>
 
   <audio id="reminder-sound" src="alarma.mp3" preload="auto"></audio>
 
   <div class="w-full max-w-lg mx-4 transition-all duration-300">
-
     <div class="header-image-container">
       <img src="cabecera.png" alt="Cabecera" class="header-image">
     </div>
@@ -81,6 +79,7 @@
     <div id="app" class="card p-6 sm:p-8 lg:p-10 w-full rounded-b-xl">
       <div id="view-container"></div>
 
+      <!-- Modal de mensaje -->
       <div id="message-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
         <div class="bg-secondary-dark p-6 rounded-lg max-w-sm w-full text-center border border-accent">
           <p id="modal-text" class="text-white text-lg mb-4"></p>
@@ -90,6 +89,7 @@
         </div>
       </div>
 
+      <!-- Modal de recordatorios -->
       <div id="reminder-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-40">
         <div class="bg-secondary-dark p-6 rounded-xl max-w-sm w-full text-left border border-accent shadow-2xl shadow-violet-700/50 transform transition-all duration-300 scale-100">
           <div class="flex justify-between items-center mb-4">
@@ -109,18 +109,15 @@
 
 <script>
 /* =======================================================
-   VARIABLES Y CONFIGURACIÓN
+   VARIABLES Y UTILIDADES
 ======================================================= */
 const STORAGE_KEY = 'cataleya_appointments_data';
 let currentView = 'home';
 let currentCalendarDate = new Date();
 let appointments = [];
 
-/* =======================================================
-   UTILIDADES
-======================================================= */
-function showModal(msg){ modalText.textContent=msg; messageModal.classList.remove('hidden'); }
-function closeModal(){ messageModal.classList.add('hidden'); }
+function showModal(msg){ document.getElementById('modal-text').textContent=msg; document.getElementById('message-modal').classList.remove('hidden'); }
+function closeModal(){ document.getElementById('message-modal').classList.add('hidden'); }
 function closeReminderModal(){ document.getElementById('reminder-modal').classList.add('hidden'); }
 function formatDateTime(date){ const d=new Date(date); return `${d.toLocaleDateString('es-ES')} ${d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}`; }
 function formatTime(date){ return new Date(date).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}); }
@@ -128,15 +125,15 @@ function formatTime(date){ return new Date(date).toLocaleTimeString('es-ES',{hou
 /* =======================================================
    LOCALSTORAGE
 ======================================================= */
-function saveAppointments(a,t=Date.now()){ localStorage.setItem(STORAGE_KEY,JSON.stringify({appointments:a,last:t})); }
+function saveAppointments(a){ localStorage.setItem(STORAGE_KEY,JSON.stringify(a)); }
 function loadAppointments(){
   const s=localStorage.getItem(STORAGE_KEY);
   if(!s){saveAppointments([]);return[];}
-  return JSON.parse(s).appointments.sort((a,b)=>new Date(a.dateTime)-new Date(b.dateTime));
+  return JSON.parse(s).sort((a,b)=>new Date(a.dateTime)-new Date(b.dateTime));
 }
 
 /* =======================================================
-   RENDERIZAR HOME Y CALENDARIO
+   VISTAS
 ======================================================= */
 function setView(v){ currentView=v; renderView(); }
 
@@ -155,12 +152,27 @@ function renderHome(){
     </div>`;
 }
 
+function renderAdd(){
+  viewContainer.innerHTML=`
+    <h2 class="text-2xl font-bold text-white mb-4">Nueva Cita</h2>
+    <input id="nameInput" class="w-full mb-3 p-2 rounded bg-secondary-dark text-white border border-gray-700" placeholder="Nombre del cliente">
+    <input id="dateInput" type="datetime-local" class="w-full mb-3 p-2 rounded bg-secondary-dark text-white border border-gray-700">
+    <button onclick="saveNewAppointment()" class="w-full bg-accent hover:bg-accent-hover text-white font-bold py-3 rounded-lg transition duration-300">Guardar Cita</button>
+    <button onclick="setView('home')" class="w-full mt-3 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 rounded-lg">Cancelar</button>`;
+}
+
+function saveNewAppointment(){
+  const n=document.getElementById('nameInput').value.trim();
+  const d=document.getElementById('dateInput').value;
+  if(!n||!d){showModal('Completa ambos campos.');return;}
+  addAppointment(n,new Date(d).toISOString());
+}
+
 function renderCalendar(){
   const today=new Date(); today.setHours(0,0,0,0);
   const y=currentCalendarDate.getFullYear(),m=currentCalendarDate.getMonth();
   const firstDay=new Date(y,m,1); let start=firstDay.getDay(); if(start===0)start=6; else start--;
   const days=new Date(y,m+1,0).getDate();
-
   const byDay=appointments.reduce((a,apt)=>{const k=new Date(apt.dateTime).toISOString().substring(0,10);(a[k]=a[k]||[]).push(apt);return a;}, {});
   const title=currentCalendarDate.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
   let html='';
@@ -190,24 +202,6 @@ function showDayDetails(k){
   document.getElementById('reminder-modal').classList.remove('hidden');
 }
 
-/* =======================================================
-   AGENDAR Y CANCELAR CITAS
-======================================================= */
-function renderAdd(){
-  viewContainer.innerHTML=`
-  <h2 class="text-2xl font-bold text-white mb-4">Nueva Cita</h2>
-  <input id="nameInput" class="w-full mb-3 p-2 rounded bg-secondary-dark text-white border border-gray-700" placeholder="Nombre del cliente">
-  <input id="dateInput" type="datetime-local" class="w-full mb-3 p-2 rounded bg-secondary-dark text-white border border-gray-700">
-  <button onclick="saveNewAppointment()" class="w-full bg-accent hover:bg-accent-hover text-white font-bold py-3 rounded-lg transition duration-300">Guardar Cita</button>
-  <button onclick="setView('home')" class="w-full mt-3 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 rounded-lg">Cancelar</button>`;
-}
-function saveNewAppointment(){
-  const n=document.getElementById('nameInput').value.trim();
-  const d=document.getElementById('dateInput').value;
-  if(!n||!d){showModal('Completa ambos campos.');return;}
-  addAppointment(n,new Date(d).toISOString());
-}
-
 function renderCancel(){
   const c=appointments.length?appointments.map(a=>`
   <div class="appointment-item p-4 mb-2 bg-secondary-dark rounded-lg flex justify-between items-center border border-gray-700">
@@ -215,13 +209,6 @@ function renderCancel(){
     <button onclick="confirmCancel('${a.id}')" class="text-cancel hover:text-red-300 font-bold py-1 px-3 rounded-lg border border-cancel"><i class="fas fa-trash-alt"></i></button>
   </div>`).join(''):`<p class="text-center text-gray-500 py-8">No hay citas.</p>`;
   viewContainer.innerHTML=`<h2 class="text-2xl font-bold text-white mb-4">Cancelar Citas</h2>${c}<button onclick="setView('home')" class="mt-6 w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg">Volver</button>`;
-}
-function confirmCancel(id){
-  appointments=appointments.filter(a=>a.id!==id);
-  saveAppointments(appointments);
-  sendAppointmentsToSW();
-  renderCancel();
-  showModal('Cita cancelada correctamente.');
 }
 
 function renderView(){
@@ -233,7 +220,7 @@ function renderView(){
 }
 
 /* =======================================================
-   AGREGAR CITA Y SERVICE WORKER
+   AGREGAR / CANCELAR CITAS
 ======================================================= */
 function addAppointment(name,date){
   const newA={id:crypto.randomUUID(),name:name.trim(),dateTime:date};
@@ -245,7 +232,17 @@ function addAppointment(name,date){
   renderView();
   showModal(`✅ ¡Cita agendada! ${name} el ${formatDateTime(date)}`);
 }
+function confirmCancel(id){
+  appointments=appointments.filter(a=>a.id!==id);
+  saveAppointments(appointments);
+  sendAppointmentsToSW();
+  renderCancel();
+  showModal('Cita cancelada correctamente.');
+}
 
+/* =======================================================
+   SERVICE WORKER Y ALARMAS
+======================================================= */
 document.addEventListener('DOMContentLoaded',()=>{appointments=loadAppointments();renderView();});
 
 if('serviceWorker' in navigator){
@@ -261,7 +258,7 @@ function sendAppointmentsToSW(){
 }
 
 const originalSaveAppointments=saveAppointments;
-saveAppointments=function(a,t){originalSaveAppointments(a,t);sendAppointmentsToSW();renderView();};
+saveAppointments=function(a){originalSaveAppointments(a);sendAppointmentsToSW();renderView();};
 
 if('serviceWorker' in navigator){
   navigator.serviceWorker.addEventListener('message',event=>{
