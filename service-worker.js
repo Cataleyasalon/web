@@ -1,11 +1,77 @@
-// service worker v33
-const CACHE_NAME='cataleya-cache-v33';
-const urlsToCache=['./index5.html','./manifest.json','./icono192.png','./icono512.png','./cabecera.png','./alarma.mp3'];
-let appointments=[];let notified=[];let timer=null;
-function ensureArray(d){if(Array.isArray(d))return d;try{const p=JSON.parse(d);if(Array.isArray(p))return p;}catch(e){}return [];}
-function check(){appointments=ensureArray(appointments);const now=Date.now(),FIVE=5*60*1000;appointments.forEach(a=>{const t=new Date(a.dateTime).getTime(),d=t-now;if(d>0&&d<=FIVE&&!notified.includes(a.id)){self.registration.showNotification('🔔 Cita próxima',{body:`Cita con ${a.name} en ${Math.ceil(d/60000)} min.`,icon:'./icono192.png',badge:'./icono192.png'});notified.push(a.id);self.clients.matchAll({type:'window'}).then(cs=>cs.forEach(c=>c.postMessage({type:'PLAY_ALARM_SOUND'})));}});}
-function startTimer(){if(timer)clearInterval(timer);check();timer=setInterval(check,5*60*1000);}
-self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(urlsToCache)));self.skipWaiting();});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(n=>Promise.all(n.map(x=>x!==CACHE_NAME&&caches.delete(x)))));e.waitUntil(self.clients.claim());startTimer();});
-self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));});
-self.addEventListener('message',e=>{if(e.data?.type==='UPDATE_APPOINTMENTS'){let p=e.data.appointments;if(typeof p==='string'){try{p=JSON.parse(p);}catch(e){p=[];}}if(p&&p.appointments&&Array.isArray(p.appointments))p=p.appointments;if(!Array.isArray(p)){if(p&&typeof p==='object'){const vals=Object.values(p).filter(v=>v&&v.dateTime);p=vals.length?vals:[];}else p=[];}appointments=p;notified=[];check();}});
+// service-worker v34 - attempts to keep appointments and show notifications even if page closed.
+// Note: Background execution depends on browser & whether PWA is installed. Install PWA for best results.
+
+const CACHE_NAME = 'cataleya-v34-cache';
+const ASSETS = ['index5.html','manifest.json','icono192.png','icono512.png','cabecera.png','alarma.mp3'];
+
+let appointments = [];
+let notified = [];
+let timer = null;
+
+function ensureArray(v){ return Array.isArray(v) ? v : []; }
+
+self.addEventListener('install', evt=>{
+  evt.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));
+});
+
+self.addEventListener('activate', evt=>{
+  evt.waitUntil(self.clients.claim());
+  startTimer();
+});
+
+self.addEventListener('fetch', evt=>{
+  evt.respondWith(caches.match(evt.request).then(r=> r || fetch(evt.request)));
+});
+
+self.addEventListener('message', evt=>{
+  const data = evt.data || {};
+  if(data.type === 'UPDATE_APPOINTMENTS'){
+    try{
+      appointments = ensureArray(data.appointments);
+      // reset notified to avoid stuck state
+      notified = [];
+    }catch(e){ appointments = []; }
+  } else if(data.type === 'SHOW_NOTIFICATION'){
+    // allow page to ask SW to show a notification
+    const title = data.title || 'Notificación';
+    const options = data.options || {};
+    self.registration.showNotification(title, options);
+  }
+});
+
+function startTimer(){
+  if(timer) return;
+  // check immediately and every 5 minutes
+  const check = ()=>{
+    const now = Date.now();
+    appointments = ensureArray(appointments);
+    appointments.forEach(a=>{
+      try{
+        const t = new Date(a.dateTime).getTime();
+        const diff = t - now;
+        // if appointment within next 5 minutes and not yet notified
+        if(diff > 0 && diff <= 5*60*1000 && !notified.includes(a.id)){
+          // show notification
+          const title = `🔔 Cita con ${a.name}`;
+          const body = `Tu cita es a las ${new Date(a.dateTime).toLocaleTimeString()}`;
+          const options = { body, icon: 'icono192.png', badge: 'icono192.png', data: { id: a.id } };
+          self.registration.showNotification(title, options);
+          notified.push(a.id);
+          // inform clients to play sound if they exist
+          self.clients.matchAll({type:'window'}).then(clients=>clients.forEach(c=>c.postMessage({type:'PLAY_ALARM_SOUND'})));
+        }
+      }catch(e){ console.error('check err', e); }
+    });
+  };
+  check();
+  timer = setInterval(check, 5*60*1000);
+}
+
+// notification click behavior
+self.addEventListener('notificationclick', event=>{
+  event.notification.close();
+  event.waitUntil(clients.matchAll({ type: 'window' }).then( cList => {
+    for(const c of cList){ if('focus' in c) return c.focus(); }
+    return clients.openWindow('/index5.html');
+  }));
+});
