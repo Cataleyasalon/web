@@ -13,7 +13,8 @@
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;background:var(--bg);color:var(--muted);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;display:flex;align-items:flex-start;justify-content:center;padding:28px;}
 .container{width:100%;max-width:920px;}
-.header{border-radius:12px 12px 0 0;overflow:hidden;height:150px;background:linear-gradient(90deg,var(--purple),var(--purple-2));display:flex;align-items:center;justify-content:center;color:white;font-size:20px;font-weight:700}
+.cab{border-radius:12px 12px 0 0;overflow:hidden;height:150px;background:#111;display:flex;align-items:center;justify-content:center}
+.cab img{width:100%;height:150px;object-fit:cover;display:block}
 .card{background:var(--card);backdrop-filter:blur(6px);padding:20px;border-radius:0 0 12px 12px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
 .row{display:grid;grid-template-columns:1fr;gap:12px}
 .btn{display:block;width:100%;padding:14px;border-radius:12px;border:0;font-weight:700;cursor:pointer}
@@ -26,17 +27,15 @@ body{margin:0;min-height:100vh;background:var(--bg);color:var(--muted);font-fami
 .small{font-size:13px;color:#e6e9ef}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center}
 .modal-card{background:rgba(20,24,30,0.9);border:1px solid rgba(167,139,250,0.14);padding:18px;border-radius:12px;color:var(--muted);backdrop-filter:blur(6px);max-width:520px;width:100%}
-.calendar-footer{position:sticky;bottom:12px;display:flex;justify-content:center;padding-top:12px}
-.fixed-back{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;z-index:50}
+.calendar-footer{display:flex;justify-content:center;padding-top:12px;margin-top:12px}
 .footer-note{font-size:12px;color:#9aa4b2;margin-top:10px;text-align:center}
 </style>
 </head>
 <body>
 <div class="container">
-  <div class="header">Cataleya Citas</div>
+  <div class="cab"><img src="cabecera.png" alt="Cabecera"></div>
   <div class="card">
     <div id="app" class="row"></div>
-    <div class="footer-note">Instala como PWA para recibir notificaciones incluso con la app cerrada.</div>
   </div>
 </div>
 
@@ -167,7 +166,7 @@ function renderCalendar(){
     const items = da.slice(0,2).map(x=>`<div class='small'>${x.name} - ${new Date(x.dateTime).toLocaleTimeString()}</div>`).join('');
     grid += `<div class="list-item" onclick="showDay('${key}')"><div style="text-align:right;font-weight:700">${d}</div><div>${items}</div></div>`;
   }
-  app.innerHTML = `<h3 style="color:white">${currentCalendarDate.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</h3><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px">${grid}</div><div class="fixed-back"><button id="back" class="btn btn-primary" style="font-size:18px;padding:12px 20px"><span style="margin-right:10px">⬅️</span>Volver al menú</button></div>`;
+  app.innerHTML = `<h3 style="color:white">${currentCalendarDate.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</h3><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px">${grid}</div><div class="calendar-footer"><button id="back" class="btn btn-primary" style="font-size:18px;padding:12px 20px"><span style="margin-right:10px">⬅️</span>Volver al menú</button></div>`;
   document.getElementById('back').onclick = ()=> renderHome();
 }
 
@@ -222,7 +221,7 @@ function startReminder(){
       if(navigator.serviceWorker && navigator.serviceWorker.controller){
         try{ navigator.serviceWorker.controller.postMessage({ type:'SHOW_NOTIFICATION', title, options }); }catch(e){ try{ new Notification(title, options); }catch(e){} }
       } else {
-        try{ new Notification(title, options); }catch(e){}
+        try{ new Notification(title, options); }catch(e){} 
       }
       // if clients exist, request playing sound loop
       if(navigator.serviceWorker && navigator.serviceWorker.controller){
