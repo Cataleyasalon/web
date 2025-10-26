@@ -6,6 +6,463 @@
 <title>Cataleya Citas</title>
 <link rel="manifest" href="manifest.json">
 <style>
+/* ===== Theme + sizing (v36 Glow) ===== */
+:root{
+  --bg:#1a232b;
+  --card:rgba(255,255,255,0.03);
+  --glass:rgba(167,139,250,0.10);
+  --purple:#a78bfa;
+  --purple-2:#8b5cf6;
+  --muted:#cbd5e1;
+  --accent:#8b5cf6;
+  --btn-text-size:18px;
+  --body-text-size:16px;
+  --title-size:20px;
+  --fade-dur:0.5s;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  background:var(--bg);
+  color:var(--muted);
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding:28px;
+  overflow-y:auto;
+  animation: pageFade var(--fade-dur) ease both;
+  /* subtle lavender radial glow during fade-in */
+  background-image: radial-gradient(circle at 50% 15%, rgba(167,139,250,0.06), transparent 35%);
+}
+
+/* fade-in animation (global) */
+@keyframes pageFade {
+  from { opacity: 0; filter: blur(6px); }
+  to   { opacity: 1; filter: blur(0); }
+}
+
+/* container */
+.container{width:100%;max-width:980px;}
+.cab{border-radius:12px 12px 0 0;overflow:hidden;height:150px;background:#111;display:flex;align-items:center;justify-content:center}
+.cab img{width:100%;height:150px;object-fit:cover;display:block}
+.card{
+  background:var(--card);
+  backdrop-filter:blur(6px);
+  padding:22px;
+  border-radius:0 0 12px 12px;
+  box-shadow:0 12px 40px rgba(0,0,0,.6);
+}
+
+/* layout & readability */
+.row{display:grid;grid-template-columns:1fr;gap:16px}
+h3{font-size:var(--title-size);margin:0 0 8px 0}
+.small{font-size:0.85rem;color:#d6d9e0}
+.footer-note{font-size:12px;color:#9aa4b2;margin-top:10px;text-align:center;display:none}
+
+/* buttons (25% larger than before) */
+.btn{
+  display:inline-block;
+  padding:16px 18px;
+  border-radius:14px;
+  border:0;
+  font-weight:700;
+  cursor:pointer;
+  font-size:var(--btn-text-size);
+  transition: transform .12s ease, box-shadow .16s ease;
+  user-select:none;
+}
+.btn:active{ transform:scale(.98) } /* quick tap feedback */
+.btn-primary{
+  background:linear-gradient(90deg,var(--purple),var(--purple-2));
+  color:white;
+  box-shadow:0 6px 20px rgba(139,92,246,0.12);
+}
+.btn-white{
+  background:rgba(255,255,255,0.03);
+  color:white;
+  border:1px solid rgba(167,139,250,0.08);
+}
+.btn-gray{ background:#2b3440;color:white }
+.btn-danger{ background:#ef4444;color:white }
+
+/* pulse glow on hover/focus */
+.btn-primary:hover, .btn-primary:focus,
+.btn-white:hover, .btn-white:focus {
+  animation: pulseGlow 1s ease;
+  box-shadow: 0 8px 30px rgba(139,92,246,0.16), 0 0 18px rgba(139,92,246,0.08);
+}
+@keyframes pulseGlow{
+  0% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-2px) scale(1.01); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* inputs */
+.input{
+  width:100%;
+  padding:14px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,0.04);
+  background:transparent;
+  color:var(--muted);
+  font-size:var(--body-text-size);
+}
+
+/* list item */
+.list-item{
+  background:var(--glass);
+  padding:14px;
+  border-radius:12px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  border:1px solid rgba(167,139,250,0.12);
+  margin-bottom:10px;
+}
+
+/* calendar grid */
+.calendar {
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:10px;
+  align-items:start;
+}
+.calendar .day {
+  background:rgba(255,255,255,0.02);
+  border-radius:10px;
+  padding:8px;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-start;
+  gap:6px;
+  min-height:78px;
+  aspect-ratio: 1 / 1; /* ensures square cells and prevents overflow */
+  position:relative;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.calendar .day:hover { transform: translateY(-4px); box-shadow:0 12px 30px rgba(0,0,0,.45) }
+.day .num{ font-weight:700; text-align:right; color:var(--muted) }
+.day .items{ font-size:13px; color:#e6edf3; display:flex; flex-direction:column; gap:4px; overflow:hidden; }
+
+/* indicator glow under day number for days with appointments */
+.day .glow-dot{
+  width:8px;height:8px;border-radius:50%;background:var(--purple);
+  position:absolute; left:50%; transform:translateX(-50%);
+  bottom:10px;
+  box-shadow: 0 0 12px rgba(167,139,250,0.9), 0 0 28px rgba(139,92,246,0.25);
+}
+
+/* fixed-back removed (we keep button below calendar but not overlapping) */
+.calendar-footer{
+  display:flex;
+  justify-content:center;
+  margin-top:10px;
+}
+
+/* bigger text in main lists */
+.list-item .name{ font-size:18px; font-weight:700; color:var(--purple) }
+.list-item .time{ font-size:14px; color:#e6edf3 }
+
+/* modal */
+.modal{ position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:9999 }
+.modal-card{ background:rgba(20,24,30,0.95); border:1px solid rgba(167,139,250,0.14); padding:18px; border-radius:12px; color:var(--muted); max-width:640px; width:94%; }
+
+/* responsive smaller screens: reduce sizes but keep readability */
+@media (max-width:520px){
+  :root{ --btn-text-size:16px; --body-text-size:14px; --title-size:18px; }
+  .calendar .day{ aspect-ratio: 1 / 1; min-height:64px; }
+  .cab img{height:110px}
+}
+</style>
+</head>
+<body>
+
+<div class="container fade-target">
+  <div class="cab"><img src="cabecera.png" alt="Cabecera"></div>
+  <div class="card">
+    <div id="app" class="row"></div>
+  </div>
+</div>
+
+<!-- audio alarm (looped by code) -->
+<audio id="alarm" src="alarma.mp3" preload="auto"></audio>
+
+<!-- App Script -->
+<script>
+/* ========== App logic (v36 PWA Glow) ========== */
+const STORAGE_KEY = 'cataleya_v36_appointments';
+let appointments = [];
+let reminderTimer = null;
+
+const app = document.getElementById('app');
+const alarm = document.getElementById('alarm');
+
+function fadePage(){ // apply fade-in (CSS global handles anim, but we retrigger when returning)
+  document.documentElement.style.animation = 'none';
+  void document.documentElement.offsetWidth;
+  document.documentElement.style.animation = `pageFade var(--fade-dur) ease both`;
+}
+
+function showModal(text){
+  const m = document.createElement('div'); m.className='modal';
+  m.innerHTML = `<div class="modal-card"><div>${text.replace(/\\n/g,'<br>')}</div><div style="text-align:right;margin-top:12px"><button id="mclose" class="btn btn-primary">Entendido</button></div></div>`;
+  document.body.appendChild(m);
+  document.getElementById('mclose').onclick = ()=> {
+    stopAlarmLoop();
+    document.body.removeChild(m);
+    fadePage();
+  };
+}
+
+/* local storage helpers */
+function ensureArray(v){ return Array.isArray(v) ? v : []; }
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    appointments = raw ? ensureArray(JSON.parse(raw)) : [];
+    // normalize fields
+    appointments = appointments.map(a=> Object.assign({notified:false}, a));
+  }catch(e){ appointments = []; localStorage.removeItem(STORAGE_KEY); }
+  return appointments;
+}
+function save(arr){
+  try{
+    appointments = ensureArray(arr);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(appointments));
+    // update SW
+    if(navigator.serviceWorker && navigator.serviceWorker.controller){
+      try{ navigator.serviceWorker.controller.postMessage({ type:'UPDATE_APPOINTMENTS', appointments }); }catch(err){ console.warn('post to SW failed', err); }
+    }
+    return true;
+  }catch(e){ console.error(e); return false; }
+}
+
+/* UI renderers */
+function renderHome(){
+  fadePage();
+  app.innerHTML = `
+    <div style="display:grid;gap:12px">
+      <button id="addBtn" class="btn btn-primary">AGENDAR NUEVA CITA</button>
+      <button id="viewBtn" class="btn btn-white">VER CITAS</button>
+      <button id="calBtn" class="btn btn-gray">VER CALENDARIO</button>
+      <button id="cancelBtn" class="btn btn-danger">CANCELAR CITA</button>
+    </div>`;
+  document.getElementById('addBtn').onclick = renderAdd;
+  document.getElementById('viewBtn').onclick = ()=>{ renderView(); location.hash=''; };
+  document.getElementById('calBtn').onclick = renderCalendar;
+  document.getElementById('cancelBtn').onclick = renderCancel;
+}
+
+function renderAdd(){
+  fadePage();
+  const now = new Date().toISOString().slice(0,16);
+  app.innerHTML = `
+    <h3>Agendar Cita</h3>
+    <input id="name" class="input" placeholder="Nombre del cliente">
+    <input id="date" type="datetime-local" class="input" value="${now}">
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button id="confirm" class="btn btn-primary">Confirmar Cita</button>
+      <button id="back" class="btn btn-gray">Volver</button>
+    </div>`;
+  document.getElementById('back').onclick = ()=> (load(), renderHome());
+  document.getElementById('confirm').onclick = async ()=>{
+    const name = document.getElementById('name').value.trim();
+    const date = document.getElementById('date').value;
+    if(!name||!date) return showModal('⚠️ Debes completar todos los campos.');
+    const dt = new Date(date);
+    if(isNaN(dt.getTime())) return showModal('❌ Fecha inválida');
+    const apt = { id:`id-${Date.now()}-${Math.random().toString(16).slice(2)}`, name, dateTime: dt.toISOString(), createdAt:new Date().toISOString(), notified:false };
+    const arr = ensureArray(load()); arr.push(apt);
+    save(arr);
+    showModal('✅ La cita se registró con éxito');
+    startReminder();
+    setTimeout(()=> renderHome(),900);
+  };
+}
+
+function renderView(){
+  fadePage();
+  load();
+  const now = Date.now();
+  const list = appointments.filter(a=> new Date(a.dateTime).getTime() >= now).sort((a,b)=> new Date(a.dateTime) - new Date(b.dateTime));
+  if(!list.length){
+    app.innerHTML = `<p class="small">💤 No hay citas programadas a partir de hoy.</p><button class="btn btn-gray" id="back">Volver</button>`;
+    document.getElementById('back').onclick = ()=> renderHome();
+    return;
+  }
+  app.innerHTML = `<div id="list"></div><div style="margin-top:10px"><button id="back" class="btn btn-gray">Volver</button></div>`;
+  document.getElementById('back').onclick = ()=> renderHome();
+  const listEl = document.getElementById('list');
+  list.forEach(a=>{
+    const item = document.createElement('div'); item.className='list-item';
+    item.innerHTML = `<div><div class="name">${a.name}</div><div class="time">${new Date(a.dateTime).toLocaleString()}</div></div><div><button class="btn btn-danger" data-id="${a.id}">Cancelar</button></div>`;
+    listEl.appendChild(item);
+  });
+  listEl.querySelectorAll('button').forEach(b=> b.onclick = (e)=>{
+    const id = e.currentTarget.dataset.id;
+    const arr = ensureArray(load()).filter(x=> x.id !== id);
+    save(arr);
+    renderView();
+  });
+}
+
+function renderCalendar(){
+  fadePage();
+  load();
+  // compute month grid for currentCalendarDate
+  const y = currentCalendarDate.getFullYear(), m = currentCalendarDate.getMonth();
+  const first = new Date(y,m,1).getDay() || 7; // monday-offset safe
+  const days = new Date(y,m+1,0).getDate();
+  const map = appointments.reduce((acc,b)=>{ const k=b.dateTime.slice(0,10); (acc[k]=acc[k]||[]).push(b); return acc; }, {});
+  let gridHtml = '';
+  for(let i=1;i<first;i++) gridHtml += '<div></div>';
+  for(let d=1; d<=days; d++){
+    const key = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayItems = (map[key]||[]).sort((a,b)=> new Date(a.dateTime)-new Date(b.dateTime));
+    const itemsHtml = dayItems.slice(0,3).map(x=>`<div>${x.name} - ${new Date(x.dateTime).toLocaleTimeString()}</div>`).join('');
+    const glow = dayItems.length ? `<div class="glow-dot"></div>` : '';
+    gridHtml += `<div class="day" onclick="showDay('${key}')"><div class="num">${d}</div><div class="items">${itemsHtml}</div>${glow}</div>`;
+  }
+  app.innerHTML = `<h3 style="text-align:center">${currentCalendarDate.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</h3>
+    <div class="calendar">${gridHtml}</div>
+    <div class="calendar-footer"><button id="back" class="btn btn-primary">⬅️ Volver al menú</button></div>`;
+  document.getElementById('back').onclick = ()=> renderHome();
+}
+
+function renderCancel(){
+  fadePage();
+  load();
+  if(!appointments.length){
+    app.innerHTML = '<p class="small">No hay citas.</p><button class="btn btn-gray" id="back">Volver</button>';
+    document.getElementById('back').onclick = ()=> renderHome();
+    return;
+  }
+  app.innerHTML = appointments.map(a=>`<div class="list-item"><div><div class="name">${a.name}</div><div class="time">${new Date(a.dateTime).toLocaleString()}</div></div><div><button class="btn btn-danger" data-id="${a.id}">Cancelar</button></div></div>`).join('')+`<div style="margin-top:10px"><button class="btn btn-gray" id="back">Volver</button></div>`;
+  document.getElementById('back').onclick = ()=> renderHome();
+  document.querySelectorAll('[data-id]').forEach(b=> b.onclick = (e)=>{ const id = e.currentTarget.dataset.id; const arr = ensureArray(load()).filter(x=> x.id !== id); save(arr); renderCancel(); });
+}
+
+function showDay(k){
+  load();
+  const list = appointments.filter(a=> a.dateTime.startsWith(k)).sort((a,b)=> new Date(a.dateTime)-new Date(b.dateTime));
+  if(!list.length) return showModal('No hay citas en esta fecha.');
+  showModal(list.map(a=> `${a.name} - ${new Date(a.dateTime).toLocaleTimeString()}`).join('\\n'));
+}
+
+/* ====== Alarm controls ====== */
+function playAlarmLoop(){ try{ alarm.loop = true; alarm.currentTime = 0; alarm.play().catch(()=>{}); }catch(e){} }
+function stopAlarmLoop(){ try{ alarm.pause(); alarm.currentTime = 0; }catch(e){} }
+
+/* ====== Reminder logic: check every 60s (client-side) and ask SW to show notifications for background ====== */
+function startReminder(){
+  if(reminderTimer) return;
+  const check = ()=>{
+    load();
+    const now = Date.now();
+    const upcoming = appointments.filter(a=>{
+      const t = new Date(a.dateTime).getTime();
+      const diff = t - now;
+      return diff > 0 && diff <= 5*60*1000 && !a.notified;
+    });
+    upcoming.forEach(a=>{
+      a.notified = true;
+      const dateStr = new Date(a.dateTime).toLocaleString('es-ES',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+      const title = `🔔 Cita con ${a.name}`;
+      const body = `💜 Recuerda tu cita el ${dateStr}`;
+      const options = { body, icon:'icono192.png', badge:'icono192.png', data:{ id: a.id }, requireInteraction:true };
+      // via SW if available (better background behavior) else Notification API
+      if(navigator.serviceWorker && navigator.serviceWorker.controller){
+        try{ navigator.serviceWorker.controller.postMessage({ type:'SHOW_NOTIFICATION', title, options }); }catch(e){ try{ new Notification(title, options); }catch(e){} }
+        try{ navigator.serviceWorker.controller.postMessage({ type:'PLAY_ALARM_SOUND' }); }catch(e){} // ask clients to play sound
+      } else {
+        try{ new Notification(title, options); playAlarmLoop(); }catch(e){}
+      }
+    });
+    save(appointments);
+  };
+  check();
+  reminderTimer = setInterval(check, 60*1000); // check every minute for a bit more responsiveness
+}
+
+/* ===== Service Worker registration & messaging ===== */
+async function registerSW(){
+  if('serviceWorker' in navigator){
+    try{
+      const reg = await navigator.serviceWorker.register('service-worker.js');
+      console.log('SW registered', reg);
+      // push current appointments to SW
+      if(reg.active) reg.active.postMessage({ type:'UPDATE_APPOINTMENTS', appointments: load() });
+      // messages from SW
+      navigator.serviceWorker.addEventListener('message', ev=>{
+        if(!ev.data) return;
+        if(ev.data.type === 'PLAY_ALARM_SOUND'){ playAlarmLoop(); }
+        if(ev.data.type === 'STOP_ALARM_SOUND'){ stopAlarmLoop(); }
+      });
+    }catch(e){ console.warn('SW register failed', e); }
+  }
+}
+
+/* if opened via notification (url hash #view) -> go to view and stop alarm */
+function handleOpenFromNotification(){
+  if(location.hash === '#view'){
+    stopAlarmLoop();
+    renderView();
+    // clean hash to avoid repeated behavior
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+}
+
+/* show modal for recent alerts when opening app normally */
+function checkRecentAlerts(){
+  load();
+  const now = Date.now();
+  const recent = appointments.filter(a=>{
+    const t = new Date(a.dateTime).getTime();
+    return now >= t && (now - t) <= 30*60*1000 && a.notified;
+  });
+  if(recent.length){
+    const msg = recent.map(a=>`💜 Tenías una cita con ${a.name} el ${new Date(a.dateTime).toLocaleString('es-ES',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'})}`).join('\\n\\n');
+    showModal(msg);
+    stopAlarmLoop();
+  }
+}
+
+/* Permission request helper */
+function ensureNotificationPermission(){ if(Notification.permission !== 'granted') Notification.requestPermission().catch(()=>{}); }
+
+/* ===== Init ===== */
+let currentCalendarDate = new Date();
+document.addEventListener('DOMContentLoaded', ()=>{
+  load();
+  registerSW();
+  ensureNotificationPermission();
+  // if opened from notification → go direct to view
+  handleOpenFromNotification();
+  // normal startup
+  if(location.hash !== '#view') renderHome();
+  // start reminder if any upcoming
+  if(appointments.some(a=> new Date(a.dateTime).getTime() > Date.now())) startReminder();
+  // check recent alerts a bit after load
+  setTimeout(()=> checkRecentAlerts(), 800);
+});
+
+// expose showDay to global for onclick in calendar cells
+window.showDay = showDay;
+</script>
+</body>
+</html>
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Cataleya Citas</title>
+<link rel="manifest" href="manifest.json">
+<style>
 :root{
   --bg:#1a232b; --card:rgba(255,255,255,0.03); --glass:rgba(167,139,250,0.10);
   --purple:#a78bfa; --purple-2:#8b5cf6; --muted:#cbd5e1; --accent:#8b5cf6;
