@@ -189,17 +189,13 @@
         
         /**
          * Registra el Service Worker y solicita permisos de notificación.
-         * Se asume que el Service Worker está en la raíz de /web/
-
          */
         function registerServiceWorker() {
             if ('serviceWorker' in navigator) {
-                // 🚨 RUTA CORREGIDA: Asume que Service Worker está en la misma carpeta que index5.html
-                // Si la carpeta es /web/, el scope será /web/
+                // RUTA CORREGIDA: Asume que Service Worker está en el mismo directorio que index5.html
                 navigator.serviceWorker.register('service-worker.js', { scope: './' }) 
                     .then(reg => {
                         console.log('Service Worker registrado con éxito. Scope:', reg.scope);
-                        // Una vez registrado, pedimos permiso y sincronizamos citas.
                         requestNotificationPermission();
                     })
                     .catch(error => {
@@ -224,24 +220,31 @@
             }
         }
         
+        /** Envía la lista de citas actualizadas al Service Worker */
         function sendAppointmentsToSW() {
-            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            if ('serviceWorker' in navigator) {
                 const currentAppointments = loadAppointments(); 
                 
-                navigator.serviceWorker.controller.postMessage({
-                    type: 'UPDATE_APPOINTMENTS',
-                    appointments: currentAppointments
-                });
-                console.log("Citas enviadas al Service Worker.");
-            } else {
+                // Intenta enviar directamente si hay un controlador activo
+                if (navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({
+                        type: 'UPDATE_APPOINTMENTS',
+                        appointments: currentAppointments
+                    });
+                    console.log("Citas enviadas al Service Worker a través de controller.");
+                    return;
+                }
+                
+                // Si no hay controlador, intenta obtener el registro
                  navigator.serviceWorker.getRegistration().then(reg => {
                     if (reg && reg.active) {
                         reg.active.postMessage({
                             type: 'UPDATE_APPOINTMENTS',
-                            appointments: loadAppointments()
+                            appointments: currentAppointments
                         });
+                        console.log("Citas enviadas al Service Worker a través de registro activo.");
                     }
-                 });
+                 }).catch(e => console.error("No se pudo obtener el registro para enviar citas:", e));
             }
         }
 
@@ -254,7 +257,7 @@
             const data = { appointments: apts, lastResetTimestamp: timestamp };
             try {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-                sendAppointmentsToSW(); 
+                sendAppointmentsToSW(); // 🚨 CRÍTICO: Informar al Service Worker
             } catch (error) {
                 console.error('Error saving to localStorage:', error);
                 showModal('Error al guardar datos.');
@@ -277,7 +280,8 @@
                  
                 const filteredAppointments = currentAppointments.filter(apt => {
                     const aptDate = new Date(apt.dateTime);
-                    return aptDate >= fourMonthsAgo;
+                    // Solo mantén citas que sean futuras o que hayan ocurrido hace menos de 4 meses
+                    return aptDate >= fourMonthsAgo; 
                 });
                  
                 let shouldSave = currentAppointments.length !== filteredAppointments.length;
@@ -292,6 +296,7 @@
                     saveAppointments(currentAppointments, now.getTime());
                 }
 
+                // 🚨 Se ordena y se devuelve la lista para renderizado
                 return currentAppointments.sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
 
             } catch (error) {
@@ -302,7 +307,7 @@
         }
 
         // =======================================================
-        // VISTAS, CALENDARIO Y GESTIÓN DE CITAS (Iguales)
+        // VISTAS, CALENDARIO Y GESTIÓN DE CITAS
         // =======================================================
         
         function changeMonth(offset) {
@@ -318,7 +323,8 @@
             const month = dateKey.substring(5, 7);
             const day = dateKey.substring(8, 10);
             const dateISO = `${year}-${month}-${day}`;
-
+            
+            // Filtrar citas por la clave de fecha (YYYY-MM-DD)
             const dayAppointments = appointments.filter(apt => apt.dateTime.startsWith(dateISO));
              
             const displayDate = new Date(year, month - 1, day).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -447,7 +453,10 @@
             
             const appointmentsByDay = appointments.reduce((acc, apt) => {
                 const aptDate = new Date(apt.dateTime);
-                const dateKey = aptDate.getFullYear() + '-' + String(aptDate.getMonth() + 1).padStart(2, '0') + '-' + String(aptDate.getDate()).padStart(2, '0');
+                const yearStr = aptDate.getFullYear();
+                const monthStr = String(aptDate.getMonth() + 1).padStart(2, '0');
+                const dayStr = String(aptDate.getDate()).padStart(2, '0');
+                const dateKey = `${yearStr}-${monthStr}-${dayStr}`;
                 
                 if (!acc[dateKey]) { acc[dateKey] = []; }
                 acc[dateKey].push(apt);
@@ -740,6 +749,7 @@
             let aptDate = new Date(currentYear, monthIndex, day, hour, minutes, 0);
 
             if (aptDate < now) {
+                 // Si la fecha es en el pasado, asume el próximo año si el mes ya pasó o la fecha/hora ya pasó
                  if (aptDate.getMonth() < now.getMonth() || (aptDate.getMonth() === now.getMonth() && aptDate.getTime() < now.getTime())) {
                       aptDate = new Date(currentYear + 1, monthIndex, day, hour, minutes, 0);
                  }
@@ -766,6 +776,7 @@
             const now = new Date();
             const targetHour = 22; 
              
+            // Solo verifica si es entre las 22:00 y 22:04 para evitar múltiples notificaciones el mismo día
             if (now.getHours() === targetHour && now.getMinutes() < 5) {
                 const todayDateString = now.toISOString().substring(0, 10);
                 const reminderShownKey = `reminder_shown_${todayDateString}`;
