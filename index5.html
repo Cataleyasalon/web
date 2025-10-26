@@ -1,37 +1,43 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cataleya Citas</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+  />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap"
+    rel="stylesheet"
+  />
 
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          fontFamily: { sans: ["Inter", "sans-serif"] },
           colors: {
-            'primary-dark': '#0d1117',
-            'secondary-dark': '#161b22',
-            'accent': '#a78bfa',
-            'accent-hover': '#8b5cf6',
-            'cancel': '#f87171',
-            'day-base': '#1f2937',
-            'day-current': '#374151',
-            'day-other': '#111827'
-          }
-        }
-      }
-    }
+            "primary-dark": "#0d1117",
+            "secondary-dark": "#161b22",
+            accent: "#a78bfa",
+            "accent-hover": "#8b5cf6",
+            cancel: "#f87171",
+            "day-base": "#1f2937",
+            "day-current": "#374151",
+            "day-other": "#111827",
+          },
+        },
+      },
+    };
   </script>
   <style>
     body {
       background-color: #0d1117;
       color: #d1d5db;
-      font-family: 'Inter', sans-serif;
+      font-family: "Inter", sans-serif;
       min-height: 100vh;
       display: flex;
       justify-content: center;
@@ -53,195 +59,255 @@
       height: auto;
       object-fit: cover;
     }
-    .appointment-item { border-left: 3px solid #a78bfa; }
-    .appointment-item:hover { background-color: #2d3748; }
-    .calendar-day { min-height: 75px; transition: all 0.2s; }
-    .calendar-day.active-month { cursor: pointer; }
-    .calendar-day.active-month:hover {
-      box-shadow: 0 0 10px rgba(167, 139, 250, 0.3);
-      transform: scale(1.02);
-      z-index: 10;
+    .appointment-item {
+      border-left: 3px solid #a78bfa;
     }
-    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: #1f2937; }
+    .calendar-day {
+      min-height: 75px;
+      transition: all 0.2s;
+    }
+    .calendar-day.active-month:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 10px rgba(167, 139, 250, 0.3);
+    }
   </style>
 </head>
 <body>
-
   <audio id="reminder-sound" src="alarma.mp3" preload="auto"></audio>
 
   <div class="w-full max-w-lg mx-4 transition-all duration-300">
     <div class="header-image-container">
-      <img src="cabecera.png" alt="Cabecera" class="header-image">
+      <img src="cabecera.png" alt="Cabecera" class="header-image" />
     </div>
 
     <div id="app" class="card p-6 sm:p-8 lg:p-10 w-full rounded-b-xl">
       <div id="view-container"></div>
 
-      <div id="message-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-        <div class="bg-secondary-dark p-6 rounded-lg max-w-sm w-full text-center border border-accent">
+      <!-- Modal de mensajes -->
+      <div
+        id="message-modal"
+        class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50"
+      >
+        <div
+          class="bg-secondary-dark p-6 rounded-lg max-w-sm w-full text-center border border-accent"
+        >
           <p id="modal-text" class="text-white text-lg mb-4"></p>
-          <button onclick="closeModal()" class="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-lg transition duration-200 shadow-md shadow-violet-700/50">Entendido</button>
+          <button
+            onclick="closeModal()"
+            class="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-lg transition duration-200"
+          >
+            Entendido
+          </button>
         </div>
       </div>
 
-      <div id="reminder-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-40">
-        <div class="bg-secondary-dark p-6 rounded-xl max-w-sm w-full text-left border border-accent shadow-2xl shadow-violet-700/50">
+      <!-- Modal de recordatorios -->
+      <div
+        id="reminder-modal"
+        class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-40"
+      >
+        <div
+          class="bg-secondary-dark p-6 rounded-xl max-w-sm w-full text-left border border-accent shadow-2xl shadow-violet-700/50"
+        >
           <div class="flex justify-between items-center mb-4">
             <h3 id="reminder-title" class="text-xl font-bold text-accent"></h3>
-            <button onclick="closeReminderModal()" class="text-gray-400 hover:text-white transition duration-200"><i class="fas fa-times"></i></button>
+            <button
+              onclick="closeReminderModal()"
+              class="text-gray-400 hover:text-white transition duration-200"
+            >
+              <i class="fas fa-times"></i>
+            </button>
           </div>
-          <div id="reminder-content" class="text-gray-300 space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-2"></div>
-          <button onclick="closeReminderModal()" class="mt-4 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200">Cerrar</button>
+          <div
+            id="reminder-content"
+            class="text-gray-300 space-y-2 max-h-60 overflow-y-auto"
+          ></div>
+          <button
+            onclick="closeReminderModal()"
+            class="mt-4 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200"
+          >
+            Cerrar
+          </button>
         </div>
       </div>
     </div>
   </div>
 
-<script>
-const STORAGE_KEY = 'cataleya_appointments_data';
-let currentView = 'home';
-let currentCalendarDate = new Date();
-let appointments = [];
+  <script>
+    const STORAGE_KEY = "cataleya_appointments_data";
+    let currentView = "home";
+    let appointments = [];
 
-function showModal(msg){ document.getElementById('modal-text').textContent=msg; document.getElementById('message-modal').classList.remove('hidden'); }
-function closeModal(){ document.getElementById('message-modal').classList.add('hidden'); }
-function closeReminderModal(){ document.getElementById('reminder-modal').classList.add('hidden'); }
-function formatDateTime(date){ const d=new Date(date); return `${d.toLocaleDateString('es-ES')} ${d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}`; }
-function formatTime(date){ return new Date(date).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}); }
-
-function saveAppointments(a){ localStorage.setItem(STORAGE_KEY,JSON.stringify(a)); }
-function loadAppointments(){
-  const s=localStorage.getItem(STORAGE_KEY);
-  if(!s){saveAppointments([]);return[];}
-  return JSON.parse(s).sort((a,b)=>new Date(a.dateTime)-new Date(b.dateTime));
-}
-
-function setView(v){ currentView=v; renderView(); }
-
-function renderHome(){
-  viewContainer.innerHTML=`
-    <div class="space-y-4">
-      <button onclick="setView('add')" class="w-full bg-accent hover:bg-accent-hover text-white text-lg font-extrabold py-4 px-6 rounded-xl transition duration-300 flex items-center justify-center">
-        <i class="fas fa-plus-circle text-2xl mr-3"></i> AGENDAR CITA
-      </button>
-      <button onclick="setView('calendar')" class="w-full bg-secondary-dark hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg border border-gray-700">
-        <i class="fas fa-calendar-alt mr-3"></i> VER CALENDARIO
-      </button>
-      <button onclick="setView('cancel')" class="w-full bg-cancel hover:bg-red-600 text-white font-semibold py-3 px-6 rounded-lg border border-red-600">
-        <i class="fas fa-times-circle mr-3"></i> CANCELAR CITA
-      </button>
-    </div>`;
-}
-
-function renderAdd(){
-  viewContainer.innerHTML=`
-    <h2 class="text-2xl font-bold text-white mb-4">Nueva Cita</h2>
-    <input id="nameInput" class="w-full mb-3 p-2 rounded bg-secondary-dark text-white border border-gray-700" placeholder="Nombre del cliente">
-    <input id="dateInput" type="datetime-local" class="w-full mb-3 p-2 rounded bg-secondary-dark text-white border border-gray-700">
-    <button onclick="saveNewAppointment()" class="w-full bg-accent hover:bg-accent-hover text-white font-bold py-3 rounded-lg transition duration-300">Guardar Cita</button>
-    <button onclick="setView('home')" class="w-full mt-3 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 rounded-lg">Cancelar</button>`;
-}
-
-function saveNewAppointment(){
-  const n=document.getElementById('nameInput').value.trim();
-  const d=document.getElementById('dateInput').value;
-  if(!n||!d){showModal('Completa ambos campos.');return;}
-  addAppointment(n,new Date(d).toISOString());
-}
-
-function renderCalendar(){
-  const today=new Date(); today.setHours(0,0,0,0);
-  const y=currentCalendarDate.getFullYear(),m=currentCalendarDate.getMonth();
-  const firstDay=new Date(y,m,1); let start=firstDay.getDay(); if(start===0)start=6; else start--;
-  const days=new Date(y,m+1,0).getDate();
-  const byDay=appointments.reduce((a,apt)=>{const k=new Date(apt.dateTime).toISOString().substring(0,10);(a[k]=a[k]||[]).push(apt);return a;}, {});
-  const title=currentCalendarDate.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
-  let html='';
-  for(let i=0;i<start;i++)html+=`<div class="calendar-day bg-day-other"></div>`;
-  for(let d=1;d<=days;d++){
-    const cd=new Date(y,m,d); const k=cd.toISOString().substring(0,10); const apps=(byDay[k]||[]);
-    const isToday=today.toDateString()===cd.toDateString(); const has=apps.length>0;
-    let cls='bg-day-base border border-gray-700 active-month'; if(isToday)cls='bg-day-current border-2 border-accent shadow-lg active-month'; else if(has)cls='bg-day-base border border-accent/70 active-month';
-    const list=apps.slice(0,2).map(a=>`<div class="appointment-item p-0.5 ml-1 mb-0.5 bg-gray-800 rounded-sm flex justify-between items-center"><p class="text-[10px] text-white truncate">${a.name}</p><p class="text-[9px] text-gray-400 font-mono">${formatTime(a.dateTime)}</p></div>`).join('');
-    html+=`<div class="calendar-day p-1 rounded-lg flex flex-col ${cls}" onclick="showDayDetails('${k}')"><span class="text-sm ${isToday?'text-accent font-bold':'text-white font-semibold'} self-end">${d}</span><div class="flex-grow overflow-y-auto custom-scrollbar">${list}</div></div>`;
-  }
-  viewContainer.innerHTML=`
-  <div class="flex justify-between items-center mb-4">
-    <button onclick="setView('home')" class="bg-accent text-white p-2 rounded-lg"><i class="fas fa-arrow-left"></i></button>
-    <h2 class="text-base font-bold text-white uppercase">${title}</h2>
-  </div>
-  <div class="grid grid-cols-7 gap-1.5 text-xs font-bold text-center text-accent mb-2"><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div></div>
-  <div class="grid grid-cols-7 gap-1.5 max-h-[70vh] overflow-y-auto custom-scrollbar p-1">${html}</div>`;
-}
-
-function showDayDetails(k){
-  const apps=appointments.filter(a=>a.dateTime.startsWith(k));
-  const title=`Citas para el ${new Date(k).toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'})}`;
-  const content=apps.length?apps.map(a=>`<div class="border-l-4 border-accent pl-3 py-2 bg-gray-800 rounded-lg flex justify-between"><p class="font-semibold text-white">${a.name}</p><p class="text-sm text-gray-400">${formatTime(a.dateTime)}</p></div>`).join('<div class="h-3"></div>'):`<p class="text-white text-center py-4">No hay citas.</p>`;
-  document.getElementById('reminder-title').textContent=title;
-  document.getElementById('reminder-content').innerHTML=content;
-  document.getElementById('reminder-modal').classList.remove('hidden');
-}
-
-function renderCancel(){
-  const c=appointments.length?appointments.map(a=>`
-  <div class="appointment-item p-4 mb-2 bg-secondary-dark rounded-lg flex justify-between items-center border border-gray-700">
-    <div><p class="text-accent font-bold">${a.name}</p><p class="text-sm text-gray-400">${formatDateTime(a.dateTime)}</p></div>
-    <button onclick="confirmCancel('${a.id}')" class="text-cancel hover:text-red-300 font-bold py-1 px-3 rounded-lg border border-cancel"><i class="fas fa-trash-alt"></i></button>
-  </div>`).join(''):`<p class="text-center text-gray-500 py-8">No hay citas.</p>`;
-  viewContainer.innerHTML=`<h2 class="text-2xl font-bold text-white mb-4">Cancelar Citas</h2>${c}<button onclick="setView('home')" class="mt-6 w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg">Volver</button>`;
-}
-
-function renderView(){
-  appointments=loadAppointments();
-  if(currentView==='calendar')renderCalendar();
-  else if(currentView==='add')renderAdd();
-  else if(currentView==='cancel')renderCancel();
-  else renderHome();
-}
-
-function addAppointment(name,date){
-  const newA={id:crypto.randomUUID(),name:name.trim(),dateTime:date};
-  if(new Date(date)<Date.now()){showModal('No puedes agendar en el pasado');return;}
-  if(appointments.some(a=>a.dateTime===date)){showModal('Ya existe una cita en ese horario');return;}
-  appointments.push(newA);
-  saveAppointments(appointments);
-  sendAppointmentsToSW();
-  renderView();
-  showModal(`✅ ¡Cita agendada! ${name} el ${formatDateTime(date)}`);
-}
-
-function confirmCancel(id){
-  appointments=appointments.filter(a=>a.id!==id);
-  saveAppointments(appointments);
-  sendAppointmentsToSW();
-  renderCancel();
-  showModal('Cita cancelada correctamente.');
-}
-
-document.addEventListener('DOMContentLoaded',()=>{appointments=loadAppointments();renderView();});
-
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('service-worker.js').then(()=>{sendAppointmentsToSW();});
-}
-
-function sendAppointmentsToSW(){
-  if(navigator.serviceWorker.controller){
-    navigator.serviceWorker.controller.postMessage({type:'UPDATE_APPOINTMENTS',appointments:appointments});
-  }
-}
-
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.addEventListener('message',event=>{
-    if(event.data && event.data.type==='PLAY_ALARM_SOUND'){
-      const s=document.getElementById('reminder-sound');
-      s.currentTime=0;
-      s.play().catch(e=>console.warn('Sonido bloqueado:',e));
+    function showModal(msg) {
+      document.getElementById("modal-text").textContent = msg;
+      document.getElementById("message-modal").classList.remove("hidden");
     }
-  });
-}
-</script>
+    function closeModal() {
+      document.getElementById("message-modal").classList.add("hidden");
+    }
+    function closeReminderModal() {
+      document.getElementById("reminder-modal").classList.add("hidden");
+    }
+
+    function saveAppointments(a) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(a));
+    }
+    function loadAppointments() {
+      const s = localStorage.getItem(STORAGE_KEY);
+      if (!s) {
+        saveAppointments([]);
+        return [];
+      }
+      return JSON.parse(s).sort(
+        (a, b) => new Date(a.dateTime) - new Date(b.dateTime)
+      );
+    }
+
+    function renderHome() {
+      viewContainer.innerHTML = `
+        <div class="space-y-4">
+          <button onclick="setView('add')" class="w-full bg-accent hover:bg-accent-hover text-white text-lg font-extrabold py-4 px-6 rounded-xl transition duration-300 flex items-center justify-center">
+            <i class="fas fa-plus-circle text-2xl mr-3"></i> AGENDAR CITA
+          </button>
+          <button onclick="setView('calendar')" class="w-full bg-secondary-dark hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg border border-gray-700">
+            <i class="fas fa-calendar-alt mr-3"></i> VER CALENDARIO
+          </button>
+          <button onclick="setView('cancel')" class="w-full bg-cancel hover:bg-red-600 text-white font-semibold py-3 px-6 rounded-lg border border-red-600">
+            <i class="fas fa-times-circle mr-3"></i> CANCELAR CITA
+          </button>
+        </div>`;
+    }
+
+    function renderAdd() {
+      viewContainer.innerHTML = `
+        <h2 class="text-2xl font-bold text-white mb-4">Nueva Cita</h2>
+        <input id="nameInput" class="w-full mb-3 p-2 rounded bg-secondary-dark text-white border border-gray-700" placeholder="Nombre del cliente">
+        <input id="dateInput" type="datetime-local" class="w-full mb-3 p-2 rounded bg-secondary-dark text-white border border-gray-700">
+        <button onclick="saveNewAppointment()" class="w-full bg-accent hover:bg-accent-hover text-white font-bold py-3 rounded-lg transition duration-300">Guardar Cita</button>
+        <button onclick="setView('home')" class="w-full mt-3 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 rounded-lg">Volver</button>`;
+    }
+
+    function saveNewAppointment() {
+      const name = document.getElementById("nameInput").value.trim();
+      const date = document.getElementById("dateInput").value;
+      if (!name || !date) {
+        showModal("Completa ambos campos.");
+        return;
+      }
+      addAppointment(name, new Date(date).toISOString());
+    }
+
+    function renderCalendar() {
+      const today = new Date();
+      const byDay = appointments.reduce((a, apt) => {
+        const k = apt.dateTime.substring(0, 10);
+        (a[k] = a[k] || []).push(apt);
+        return a;
+      }, {});
+      let html = "";
+      for (const d in byDay) {
+        const list = byDay[d]
+          .map(
+            (a) =>
+              `<li class="border-l-4 border-accent pl-2 my-1">${a.name} - ${new Date(a.dateTime).toLocaleTimeString("es-MX",{hour:'2-digit',minute:'2-digit'})}</li>`
+          )
+          .join("");
+        html += `<div class="bg-secondary-dark p-4 rounded-lg mb-2">
+          <h3 class="text-accent font-bold">${new Date(d).toLocaleDateString("es-MX")}</h3>
+          <ul class="text-sm">${list}</ul>
+        </div>`;
+      }
+      viewContainer.innerHTML = `
+        <div class="flex justify-between mb-4">
+          <button onclick="setView('home')" class="bg-accent text-white px-3 py-2 rounded-lg"><i class="fas fa-arrow-left"></i></button>
+          <h2 class="text-xl font-bold text-white">Calendario</h2>
+        </div>
+        ${html || "<p class='text-center text-gray-400'>No hay citas programadas.</p>"}`;
+    }
+
+    function renderCancel() {
+      const html = appointments
+        .map(
+          (a) => `
+        <div class="flex justify-between items-center bg-secondary-dark p-3 mb-2 rounded-lg">
+          <div><p class="text-accent font-bold">${a.name}</p><p class="text-sm text-gray-400">${new Date(a.dateTime).toLocaleString("es-MX")}</p></div>
+          <button onclick="cancelAppointment('${a.id}')" class="text-cancel hover:text-red-400"><i class="fas fa-trash-alt"></i></button>
+        </div>`
+        )
+        .join("");
+      viewContainer.innerHTML = `
+        <h2 class="text-2xl font-bold text-white mb-4">Cancelar Citas</h2>
+        ${html || "<p class='text-center text-gray-400'>No hay citas agendadas.</p>"}
+        <button onclick="setView('home')" class="mt-4 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 rounded-lg">Volver</button>`;
+    }
+
+    function setView(v) {
+      currentView = v;
+      renderView();
+    }
+
+    function renderView() {
+      appointments = loadAppointments();
+      if (currentView === "add") renderAdd();
+      else if (currentView === "calendar") renderCalendar();
+      else if (currentView === "cancel") renderCancel();
+      else renderHome();
+    }
+
+    function addAppointment(name, date) {
+      const newA = { id: crypto.randomUUID(), name, dateTime: date };
+      if (new Date(date) < Date.now()) {
+        showModal("No puedes agendar en el pasado.");
+        return;
+      }
+      if (appointments.some((a) => a.dateTime === date)) {
+        showModal("Ya existe una cita en ese horario.");
+        return;
+      }
+      appointments.push(newA);
+      saveAppointments(appointments);
+      sendAppointmentsToSW();
+      setView("calendar");
+      showModal(`✅ Cita agendada para ${name}`);
+    }
+
+    function cancelAppointment(id) {
+      appointments = appointments.filter((a) => a.id !== id);
+      saveAppointments(appointments);
+      sendAppointmentsToSW();
+      renderCancel();
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      appointments = loadAppointments();
+      renderView();
+    });
+
+    // Service Worker
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("service-worker.js")
+        .then(() => sendAppointmentsToSW());
+    }
+
+    function sendAppointmentsToSW() {
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: "UPDATE_APPOINTMENTS",
+          appointments: appointments,
+        });
+      }
+    }
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        if (event.data?.type === "PLAY_ALARM_SOUND") {
+          const s = document.getElementById("reminder-sound");
+          s.currentTime = 0;
+          s.play().catch(() => {});
+        }
+      });
+    }
+  </script>
 </body>
 </html>
